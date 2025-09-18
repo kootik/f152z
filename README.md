@@ -39,6 +39,17 @@
   * **Библиотеки:** Chart.js (для графиков), jsPDF & html2canvas (для генерации PDF)
 
 -----
+<img width="1057" height="1587" alt="Image" src="https://github.com/user-attachments/assets/6386bb6c-d02e-4fe3-bf4e-3a9657ca1b1f" />
+
+Панель администратора
+
+https://fz152.domain.name:8443/results
+
+<img width="1666" height="1223" alt="Image" src="https://github.com/user-attachments/assets/4a81731c-e434-4dd3-8c96-a858c4bfe6d2" />
+
+Процесс тестирования
+
+<img width="1310" height="785" alt="Image" src="https://github.com/user-attachments/assets/8fa8fea8-b751-4939-bab2-1b6c8fd45e26" />
 
 ## ⚙️ Установка и запуск
 
