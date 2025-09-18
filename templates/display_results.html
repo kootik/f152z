@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Комплексный Анализ Результатов Тестирования</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #64748b;
+                --success-color: #059669;
+                --warning-color: #d97706;
+                --danger-color: #dc2626;
+                --background-color: #f8fafc;
+                --card-background: #ffffff;
+                --border-color: #e2e8f0;
+                --text-primary: #1e293b;
+                --text-secondary: #64748b;
+                --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+                --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+                --highlight-bg: #eff6ff;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background-color: var(--background-color);
+                color: var(--text-primary);
+                line-height: 1.6;
+            }
+
+            .header {
+                background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+                color: white;
+                padding: 2rem 0;
+                text-align: center;
+                box-shadow: var(--shadow-lg);
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 0.5rem;
+            }
+
+            .header p {
+                font-size: 1.1rem;
+                opacity: 0.9;
+            }
+
+            .container {
+                max-width: 1600px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+
+            .controls {
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 1.5rem;
+                margin-bottom: 2rem;
+                box-shadow: var(--shadow);
+                border: 1px solid var(--border-color);
+            }
+
+            .controls-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1.5rem;
+                flex-wrap: wrap;
+            }
+
+            .settings-btn {
+                background: var(--secondary-color);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            .settings-btn:hover {
+                background: #475569;
+                transform: translateY(-1px);
+            }
+
+            .tabs {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                background: var(--background-color);
+                border: 2px solid var(--border-color);
+                border-radius: 8px;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-weight: 500;
+            }
+
+            .tab.active {
+                background: var(--primary-color);
+                color: white;
+                border-color: var(--primary-color);
+            }
+
+            .filters {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                align-items: flex-end;
+            }
+
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .filter-group label {
+                font-weight: 500;
+                color: var(--text-secondary);
+                font-size: 0.875rem;
+            }
+
+            .filter-input {
+                width: 100%;
+                padding: 0.75rem;
+                border: 2px solid var(--border-color);
+                border-radius: 8px;
+                font-size: 1rem;
+                transition: border-color 0.3s ease;
+            }
+
+            .filter-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+            }
+
+            .analysis-buttons {
+                display: flex;
+                gap: 1rem;
+                flex-wrap: wrap;
+                margin-top: 1.5rem;
+            }
+
+            .analysis-btn {
+                background: var(--card-background);
+                border: 2px solid var(--primary-color);
+                color: var(--primary-color);
+                border-radius: 8px;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+
+            .analysis-btn:hover {
+                background: var(--primary-color);
+                color: white;
+                transform: translateY(-2px);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .analysis-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                background: var(--background-color);
+                border-color: var(--border-color);
+                color: var(--text-secondary);
+                transform: none;
+                box-shadow: none;
+            }
+
+            .reset-btn {
+                background: var(--secondary-color);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-weight: 500;
+            }
+
+            .reset-btn:hover {
+                background: #475569;
+                transform: translateY(-1px);
+            }
+
+            .anomaly-reports {
+                margin-bottom: 2rem;
+            }
+
+            .anomaly-card {
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+                box-shadow: var(--shadow);
+                border-left: 4px solid var(--danger-color);
+            }
+
+            .anomaly-card.warning {
+                border-left-color: var(--warning-color);
+            }
+
+            .anomaly-card.info {
+                border-left-color: var(--primary-color);
+            }
+
+            .anomaly-header {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+            }
+
+            .anomaly-icon {
+                min-width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+            }
+
+            .anomaly-icon.danger {
+                background: var(--danger-color);
+            }
+
+            .anomaly-icon.warning {
+                background: var(--warning-color);
+            }
+
+            .anomaly-icon.info {
+                background: var(--primary-color);
+            }
+
+            .results-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                gap: 1.5rem;
+            }
+
+            .result-card {
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 1.5rem;
+                box-shadow: var(--shadow);
+                border: 1px solid var(--border-color);
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+
+            .result-card:hover {
+                transform: translateY(-4px);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .result-card.selected {
+                border-color: var(--primary-color);
+                background: var(--highlight-bg);
+            }
+
+            .result-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 1rem;
+            }
+
+            .user-name {
+                font-weight: 600;
+                font-size: 1.1rem;
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .user-name:hover {
+                text-decoration: underline;
+            }
+
+            .grade-badge {
+                padding: 0.25rem 0.75rem;
+                border-radius: 20px;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+
+            .grade-excellent {
+                background: #dcfce7;
+                color: #166534;
+            }
+
+            .grade-good {
+                background: #dbeafe;
+                color: #1d4ed8;
+            }
+
+            .grade-satisfactory {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .grade-poor, .grade-unsatisfactory {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            .metrics-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .metric {
+                text-align: center;
+                padding: 0.75rem;
+                background: var(--background-color);
+                border-radius: 8px;
+            }
+
+            .metric-value {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary-color);
+            }
+
+            .metric-value.anomalous {
+                color: var(--danger-color);
+            }
+
+            .metric-label {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+            }
+
+            .stats-overview {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .stat-card {
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 1.5rem;
+                text-align: center;
+                box-shadow: var(--shadow);
+                border: 1px solid var(--border-color);
+            }
+
+            .stat-value {
+                font-size: 2.5rem;
+                font-weight: 700;
+                color: var(--primary-color);
+                margin-bottom: 0.5rem;
+            }
+
+            .stat-label {
+                color: var(--text-secondary);
+                font-size: 1rem;
+            }
+
+            .chart-container, .analysis-section {
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: var(--shadow);
+                border: 1px solid var(--border-color);
+            }
+
+            .chart-title, .analysis-section h3 {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+                text-align: center;
+            }
+
+            .charts-container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-top: 20px;
+            }
+
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                backdrop-filter: blur(4px);
+                animation: fadeIn 0.3s;
+            }
+
+            .modal-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--card-background);
+                border-radius: 12px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: var(--shadow-lg);
+            }
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1.5rem;
+            }
+
+            .modal-title {
+                font-size: 1.5rem;
+                font-weight: 600;
+            }
+
+            .close-btn {
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: var(--text-secondary);
+            }
+
+            .close-btn:hover {
+                color: var(--text-primary);
+            }
+
+            .settings-grid {
+                display: grid;
+                gap: 1rem;
+            }
+
+            .setting-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem;
+                background: var(--background-color);
+                border-radius: 8px;
+            }
+
+            .setting-input {
+                width: 80px;
+                padding: 0.5rem;
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                text-align: center;
+            }
+
+            .loading {
+                text-align: center;
+                padding: 2rem;
+                color: var(--text-secondary);
+                font-style: italic;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+
+            .comparison-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 1.5rem;
+            }
+
+            .comparison-table th, .comparison-table td {
+                padding: 1rem;
+                text-align: left;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .comparison-table th {
+                background: var(--background-color);
+            }
+
+            .comparison-table .match {
+                background-color: #dcfce7;
+            }
+
+            .comparison-table .mismatch {
+                background-color: #fee2e2;
+            }
+
+            #mouseTrajectoryCanvas {
+                border: 1px solid var(--border-color);
+                background-color: #fafafa;
+                margin-top: 10px;
+                max-width: 100%;
+                height: auto;
+                border-radius: 10px;
+            }
+
+            .comparison-container {
+                display: flex;
+                gap: 1.5rem;
+                align-items: flex-start;
+            }
+
+            .comparison-list-panel {
+                flex: 0 0 400px;
+                max-height: 70vh;
+                display: flex;
+                flex-direction: column;
+                background: var(--card-background);
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+                box-shadow: var(--shadow);
+            }
+
+            .comparison-list-panel .panel-content {
+                overflow-y: auto;
+                padding: 0.5rem;
+            }
+
+            .comparison-analysis-panel {
+                flex-grow: 1;
+            }
+
+            .comparison-list-card {
+                display: flex;
+                align-items: center;
+                padding: 0.75rem;
+                border-radius: 8px;
+                margin-bottom: 0.5rem;
+                cursor: pointer;
+                transition: background-color 0.2s;
+                border: 1px solid transparent;
+            }
+
+            .comparison-list-card:hover {
+                background-color: var(--highlight-bg);
+            }
+
+            .comparison-list-card.selected {
+                background-color: var(--highlight-bg);
+                border-color: var(--primary-color);
+            }
+
+            .comparison-list-card input {
+                margin-right: 1rem;
+                transform: scale(1.2);
+            }
+
+            .comparison-list-card .info h4 {
+                font-size: 1rem;
+                margin: 0;
+                font-weight: 500;
+            }
+
+            .comparison-list-card .info p {
+                font-size: 0.8rem;
+                margin: 0;
+                color: var(--text-secondary);
+            }
+
+            .comparison-list-card .score {
+                margin-left: auto;
+                text-align: right;
+                font-weight: 600;
+                padding: 0.25rem 0.5rem;
+                border-radius: 6px;
+            }
+
+            .comparison-analysis-placeholder {
+                text-align: center;
+                color: var(--text-secondary);
+                padding: 4rem 2rem;
+                border: 2px dashed var(--border-color);
+                border-radius: 12px;
+                background: var(--card-background);
+            }
+
+            .event-log-container {
+                margin-top: 1.5rem;
+                padding-top: 1.5rem;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .event-log-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.875rem;
+            }
+
+            .event-log-table th, .event-log-table td {
+                text-align: left;
+                padding: 0.5rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .event-log-table th {
+                font-weight: 600;
+                color: var(--text-secondary);
+            }
+
+            .event-log-table tr:last-child td {
+                border-bottom: none;
+            }
+			/* ========== ADD THIS CSS BLOCK ========== */
+			.session-type-badge {
+				font-size: 0.75rem;
+				font-weight: 600;
+				padding: 3px 8px;
+				border-radius: 20px;
+				margin-left: 0.5rem;
+				vertical-align: middle;
+			}
+			.session-type-badge.test {
+				background-color: var(--highlight-bg);
+				color: var(--primary-color);
+				border: 1px solid var(--primary-color);
+			}
+			.session-type-badge.study {
+				background-color: #fef3c7;
+				color: #92400e;
+				border: 1px solid #d97706;
+			}
+
+			.abandoned-filters {
+				display: flex;
+				gap: 0.5rem;
+				margin-bottom: 1.5rem;
+				justify-content: center;
+			}
+			.abandoned-filters .filter-btn {
+				background: var(--background-color);
+				border: 1px solid var(--border-color);
+				padding: 0.5rem 1rem;
+				border-radius: 8px;
+				cursor: pointer;
+				transition: all 0.2s;
+			}
+			.abandoned-filters .filter-btn.active {
+				background: var(--primary-color);
+				color: white;
+				border-color: var(--primary-color);
+			}
+			/* ========== END CSS BLOCK ========== */
+			/* Добавить в конец <style> */
+			.behavior-card {
+				padding: 1.5rem;
+				border: 1px solid var(--border-color);
+				border-left: 4px solid var(--danger-color);
+				border-radius: var(--radius);
+				margin-bottom: 1rem;
+				background: var(--card-background);
+			}
+			.behavior-card h4 {
+				margin-top: 0;
+				margin-bottom: 0.5rem;
+			}
+			.behavior-card-summary {
+				display: flex;
+				gap: 1.5rem;
+				margin-bottom: 1rem;
+				font-size: 0.9rem;
+			}
+			.behavior-card-reason {
+				font-style: italic;
+				color: var(--text-secondary);
+			}					
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @media (max-width: 992px) {
+                .comparison-container {
+                    flex-direction: column;
+                }
+
+                .comparison-list-panel {
+                    flex: 0 0 auto;
+                    width: 100%;
+                    max-height: 40vh;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .container {
+                    padding: 1rem;
+                }
+
+                .header h1 {
+                    font-size: 2rem;
+                }
+
+                .results-grid, .charts-container {
+                    grid-template-columns: 1fr;
+                }
+
+                .filters {
+                    grid-template-columns: 1fr;
+                }
+
+                .analysis-buttons {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+            }
+	
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Комплексный Анализ Результатов Тестирования</h1>
+            <p>Система комплексного анализа данных, прокторинга и детекции аномалий</p>
+        </div>
+        <div class="container">
+            <div class="controls">
+                <div class="controls-header">
+                    <div class="tabs">
+                        <div class="tab active" data-tab="overview">📊 Обзор и аномалии</div>
+                        <div class="tab" data-tab="comparison">🔍 Детальное сравнение</div>
+                   		<div class="tab" data-tab="abandoned">🚫 Прерванные сессии</div>
+    					<div class="tab" data-tab="behavior">🧠 Поведенческий анализ</div>
+    					<div class="tab" data-tab="registry">📜 Реестр аттестатов</div>
+                        <div class="tab" data-tab="statistics">📈 Сводный отчет</div>
+                    </div>
+                    <button class="settings-btn" onclick="openSettings()">⚙️ Настройки</button>
+                </div>
+                <div id="overview-controls">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="lastNameFilter">Фамилия:</label>
+                            <input type="text" id="lastNameFilter" class="filter-input" placeholder="Введите фамилию">
+                        </div>
+                        <div class="filter-group">
+                            <label for="firstNameFilter">Имя:</label>
+                            <input type="text" id="firstNameFilter" class="filter-input" placeholder="Введите имя">
+                        </div>
+                        <div class="filter-group">
+                            <label for="fingerprintFilter">Группа отпечатков:</label>
+                            <select id="fingerprintFilter" class="filter-input">
+                                <option value="">Все группы</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="analysis-buttons">
+                        <button class="analysis-btn" id="analyzeFingerprintBtn">🔐 Анализ Fingerprint</button>
+                        <button class="analysis-btn" id="analyzeMouseBtn">🖱️ Анализ движений мыши</button>
+                        <button class="analysis-btn" id="analyzeFocusBtn">👁️ Анализ нарушений</button>
+                        <button class="reset-btn" id="resetFiltersBtn">🔄 Сбросить</button>
+                    </div>
+                </div>
+            </div>
+            <div id="anomaly-reports"></div>
+            <div id="overview-content">
+                <div id="results-container" class="results-grid">
+                    <div class="loading">Загрузка...</div>
+                </div>
+            </div>
+            <div id="comparison-content" class="hidden">
+                <div class="comparison-container">
+                    <div class="comparison-list-panel">
+                        <h3 style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); margin:0;">Выберите пользователей</h3>
+                        <div class="panel-content" id="comparison-user-list"></div>
+                        <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); margin-top: auto;">
+                            <button class="analysis-btn" id="detailedAnalysisBtn" style="width: 100%;" disabled>🔬 Провести анализ</button>
+                        </div>
+                    </div>
+                    <div class="comparison-analysis-panel" id="comparison-results-panel">
+                        <div class="comparison-analysis-placeholder">
+                            <h4>Панель анализа</h4>
+                            <p>Выберите двух или более пользователей из списка слева и нажмите "Провести анализ".</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+	        <div id="abandoned-content" class="hidden">
+	            <div class="chart-container">
+	                <h3 class="chart-title">Прерванные сессии</h3>
+	                <p style="text-align: center; color: var(--text-secondary); margin-top: -1.5rem; margin-bottom: 1.5rem;">
+	                    Здесь показаны тесты, которые были начаты, но не были завершены. Это может указывать на технические проблемы или попытку кражи вопросов.
+	                </p>
+		            <div class="abandoned-filters" id="abandoned-filters">
+		                <button class="filter-btn active" data-filter="all">Все</button>
+		                <button class="filter-btn" data-filter="test">Только тесты</button>
+		                <button class="filter-btn" data-filter="study">Только обучение</button>
+		            </div>
+	                <div id="abandoned-sessions-container">
+	                    <div class="loading">Загрузка прерванных сессий...</div>
+	                </div>
+	            </div>
+	        </div>
+			<div id="behavior-content" class="hidden">
+			    <div class="chart-container">
+			        <h3 class="chart-title">Поведенческий анализ: Подозрительные сессии</h3>
+			        <p style="text-align: center; color: var(--text-secondary); margin-top: -1.5rem; margin-bottom: 1.5rem;">
+			            Система автоматически выявляет тесты, пройденные с аномально высокой скоростью и результатом при отсутствии предварительного обучения.
+			        </p>
+			        <div id="behavior-analysis-container"></div>
+			    </div>
+			</div>		
+			<div id="registry-content" class="hidden">
+			    <div class="chart-container">
+			        <h3 class="chart-title">Реестр выданных аттестатов</h3>
+			        <div id="registry-container">
+			            <div class="loading">Загрузка реестра...</div>
+			        </div>
+			    </div>
+			</div>				
+            <div id="statistics-content" class="hidden">
+                <div class="stats-overview">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalTests">0</div>
+                        <div class="stat-label">Всего тестов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="averageScore">0%</div>
+                        <div class="stat-label">Средний балл</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="anomaliesCount">0</div>
+                        <div class="stat-label">Обнаружено аномалий</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="uniqueUsers">0</div>
+                        <div class="stat-label">Уникальных пользователей</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Распределение оценок</h3>
+                    <canvas id="gradesChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Активность по дням</h3>
+                    <canvas id="activityChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Топ-5 пользователей по аномалиям</h3>
+                    <canvas id="anomaliesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">⚙️ Настройки анализа</h3>
+                    <button class="close-btn" onclick="closeSettings()">&times;</button>
+                </div>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="focusThreshold">Порог потери фокуса:</label>
+                        <input type="number" id="focusThreshold" class="setting-input" min="1" max="50">
+                    </div>
+                    <div class="setting-item">
+                        <label for="blurThreshold">Порог времени вне фокуса (сек):</label>
+                        <input type="number" id="blurThreshold" class="setting-input" min="1" max="300">
+                    </div>
+                    <div class="setting-item">
+                        <label for="mouseThreshold">Порог схожести мыши (%):</label>
+                        <input type="number" id="mouseThreshold" class="setting-input" min="50" max="99">
+                    </div>
+                    <div class="setting-item">
+                        <label for="printThreshold">Порог попыток печати:</label>
+                        <input type="number" id="printThreshold" class="setting-input" value="0" min="0" max="50">
+                    </div>
+                </div>
+                <div style="margin-top: 1.5rem; text-align: right;">
+                    <button class="analysis-btn" onclick="saveSettings()">💾 Сохранить</button>
+                </div>
+            </div>
+        </div>
+        <div id="userProfileModal" class="modal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="profileTitle">👤 Профиль пользователя</h3>
+                    <button class="close-btn" onclick="closeUserProfile()">&times;</button>
+                </div>
+                <div id="profileContent"></div>
+            </div>
+        </div>
+		
+	    <div id="eventLogModal" class="modal">
+	        <div class="modal-content" style="max-width: 800px;">
+	            <div class="modal-header">
+	                <h3 class="modal-title" id="eventLogTitle">📜 Журнал событий</h3>
+	                <button class="close-btn" onclick="closeEventLog()">&times;</button>
+	            </div>
+	            <div id="eventLogContent"></div>
+	        </div>
+	    </div>
+        <script>
+            // --- Глобальное состояние ---
+            let allResults = [];
+			let allAbandonedSessions = [];
+            let fingerprintGroups = {};
+            let selectedForComparison = new Set();
+            let currentTab = 'overview';
+            let charts = {};
+
+            let settings = {
+                focusThreshold: 5,
+                blurThreshold: 60,
+                mouseThreshold: 85,
+                printThreshold: 0
+            };
+            const USER_COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#64748b', '#6d28d9'];
+
+            // --- Инициализация ---
+            document.addEventListener('DOMContentLoaded', () => {
+                loadSettings();
+                setupEventListeners();
+                loadResults();
+            }
+            );
+
+            function setupEventListeners() {
+                document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+                document.getElementById('lastNameFilter').addEventListener('input', applyFiltersAndRender);
+                document.getElementById('firstNameFilter').addEventListener('input', applyFiltersAndRender);
+                document.getElementById('fingerprintFilter').addEventListener('change', applyFiltersAndRender);
+                document.getElementById('analyzeFingerprintBtn').addEventListener('click', runFingerprintAnalysis);
+                document.getElementById('analyzeMouseBtn').addEventListener('click', runMouseAnalysis);
+                document.getElementById('analyzeFocusBtn').addEventListener('click', runFocusAnalysis);
+                document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
+                document.getElementById('detailedAnalysisBtn').addEventListener('click', runDetailedAnalysis);
+                document.addEventListener('click', e => {
+                    if (e.target.classList.contains('modal'))
+                        e.target.style.display = 'none';
+                }
+                );
+            }
+
+            // --- Загрузка данных ---
+            async function loadResults() {
+                const container = document.getElementById('results-container');
+                container.innerHTML = '<div class="loading">Загрузка данных с сервера...</div>';
+                try {
+                    const response = await fetch('/api/get_results');
+                    if (!response.ok)
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    allResults = await response.json();
+                    allResults.forEach( (res, index) => res.cardId = `res-${index}`);
+                    applyFiltersAndRender();
+                } catch (error) {
+                    console.error('Ошибка загрузки результатов:', error);
+                    container.innerHTML = `<div class="loading">⚠️ Ошибка загрузки данных с сервера. Проверьте, запущен ли app.py.</div>`;
+                }
+            }
+
+            // --- Рендеринг и фильтрация ---
+            function applyFiltersAndRender() {
+                const lastName = document.getElementById('lastNameFilter').value.toLowerCase();
+                const firstName = document.getElementById('firstNameFilter').value.toLowerCase();
+                const fingerprint = document.getElementById('fingerprintFilter').value;
+
+                const filtered = allResults.filter(result => {
+                    const ui = result.userInfo || {};
+                    return (!lastName || ui.lastName?.toLowerCase().includes(lastName)) && (!firstName || ui.firstName?.toLowerCase().includes(firstName)) && (!fingerprint || result.fingerprintHash === fingerprint);
+                }
+                );
+
+                if (currentTab === 'overview') {
+                    renderOverviewGrid(filtered);
+                } else if (currentTab === 'comparison') {
+                    renderComparisonUserList(allResults);
+                    // Всегда показываем полный список для выбора
+                }
+            }
+
+            function renderOverviewGrid(results) {
+                const container = document.getElementById('results-container');
+                if (!container)
+                    return;
+                if (results.length === 0) {
+                    container.innerHTML = '<div class="loading">Результаты не найдены.</div>';
+                    return;
+                }
+                container.className = 'results-grid';
+                container.innerHTML = results.map(result => createResultCardHTML(result)).join('');
+            }
+
+            function createResultCardHTML(result) {
+                const ui = result.userInfo || {};
+                const tr = result.testResults || {};
+                const sm = result.sessionMetrics || {};
+
+                const focusLoss = sm.totalFocusLoss ?? 0;
+                const blurTime = sm.totalBlurTime ?? 0;
+                const printAttempts = sm.printAttempts ?? 0;
+
+                const focusLossAnomalous = focusLoss > settings.focusThreshold;
+                const blurTimeAnomalous = blurTime > settings.blurThreshold;
+                const printAnomalous = printAttempts > settings.printThreshold;
+
+                return `
+                <div class="result-card" onclick="openUserProfile('${ui.lastName}', '${ui.firstName}')">
+                    <div class="result-header">
+                        <a href="#" class="user-name" onclick="event.stopPropagation(); openUserProfile('${ui.lastName}', '${ui.firstName}')">
+                            ${escapeHtml(ui.lastName || '')} ${escapeHtml(ui.firstName || '')}
+                        </a>
+                        <div class="grade-badge grade-${tr.grade?.class || 'poor'}">${tr.grade?.text || 'N/A'}</div>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Тест: <strong>${escapeHtml(result.testType || 'N/A')}</strong></p>
+                    <div class="metrics-grid">
+                        <div class="metric"><div class="metric-value">${tr.percentage}%</div><div class="metric-label">Результат</div></div>
+                        <div class="metric"><div class="metric-value ${focusLossAnomalous ? 'anomalous' : ''}">${focusLoss}</div><div class="metric-label">Потери фокуса</div></div>
+                        <div class="metric"><div class="metric-value ${blurTimeAnomalous ? 'anomalous' : ''}">${blurTime}с</div><div class="metric-label">Время вне фокуса</div></div>
+                        <div class="metric"><div class="metric-value ${printAnomalous ? 'anomalous' : ''}">${printAttempts}</div><div class="metric-label">Попытки печати</div></div>
+                    </div>
+                </div>`;
+            }
+
+            // --- Управление вкладками ---
+            function switchTab(tabName) {
+                currentTab = tabName;
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === tabName));
+                document.getElementById('overview-content').classList.toggle('hidden', tabName !== 'overview');
+                document.getElementById('comparison-content').classList.toggle('hidden', tabName !== 'comparison');
+                document.getElementById('statistics-content').classList.toggle('hidden', tabName !== 'statistics');
+				document.getElementById('abandoned-content').classList.toggle('hidden', tabName !== 'abandoned'); 
+				document.getElementById('behavior-content').classList.toggle('hidden', tabName !== 'behavior'); 
+				document.getElementById('registry-content').classList.toggle('hidden', tabName !== 'registry');
+                document.getElementById('overview-controls').classList.toggle('hidden', tabName !== 'overview');
+
+	            if (tabName === 'overview' || tabName === 'comparison') {
+	                applyFiltersAndRender();
+	            } else if (tabName === 'statistics') {
+	                generateStatistics();
+	            } 
+				else if (tabName === 'behavior') { loadAndRenderBehaviorAnalysis(); } 
+				else if (tabName === 'registry') { loadAndRenderCertificates(); }
+				else if (tabName === 'abandoned') { 
+	                loadAndRenderAbandonedSessions();
+	            }
+	        }
+
+            // --- Анализ аномалий ---
+            function runFingerprintAnalysis() {
+                analyzeFingerprints();
+                populateFingerprintFilter();
+                displayAnomalyReport('fingerprint');
+            }
+            function runMouseAnalysis() {
+                displayAnomalyReport('mouse');
+            }
+            function runFocusAnalysis() {
+                displayAnomalyReport('violations');
+            }
+
+            function analyzeFingerprints() {
+                fingerprintGroups = {};
+                const getFingerprintHash = (result) => result.fingerprint?.privacySafeHash || result.fingerprint?.privacySafe?.webGLRenderer || 'unknown';
+                allResults.forEach(result => {
+                    const hash = getFingerprintHash(result);
+                    result.fingerprintHash = hash;
+                    if (hash !== 'unknown') {
+                        if (!fingerprintGroups[hash])
+                            fingerprintGroups[hash] = {
+                                results: [],
+                                isAnomalous: false
+                            };
+                        fingerprintGroups[hash].results.push(result);
+                    }
+                }
+                );
+                Object.values(fingerprintGroups).forEach(group => {
+                    if (group.results.length <= 1)
+                        return;
+                    const takersByTest = {};
+                    group.results.forEach(result => {
+                        const testType = result.testType || 'Неизвестный тест';
+                        const userName = `${result.userInfo.lastName} ${result.userInfo.firstName}`.trim().toLowerCase();
+                        if (!takersByTest[testType])
+                            takersByTest[testType] = new Set();
+                        if (userName)
+                            takersByTest[testType].add(userName);
+                    }
+                    );
+                    for (const testType in takersByTest)
+                        if (takersByTest[testType].size > 1) {
+                            group.isAnomalous = true;
+                            break;
+                        }
+                }
+                );
+            }
+
+            function populateFingerprintFilter() {
+                const select = document.getElementById('fingerprintFilter');
+                select.innerHTML = '<option value="">Все группы</option>';
+                Object.entries(fingerprintGroups).filter( ([_,group]) => group.results.length > 1).sort().forEach( ([hash,group]) => {
+                    const option = document.createElement('option');
+                    option.value = hash;
+                    const anomalyText = group.isAnomalous ? " (АНОМАЛИЯ)" : "";
+                    option.textContent = `Группа ...${hash.slice(-10)} (${group.results.length} сессий)${anomalyText}`;
+                    if (group.isAnomalous)
+                        option.style.color = 'var(--danger-color)';
+                    select.appendChild(option);
+                }
+                );
+            }
+
+            function displayAnomalyReport(type) {
+                const container = document.getElementById('anomaly-reports');
+                let report = {
+                    title: '',
+                    severity: 'info',
+                    details: [],
+                    isList: true
+                };
+
+                if (type === 'fingerprint') {
+                    report.title = '🔐 Обнаружено совпадение отпечатков устройств';
+                    report.severity = 'danger';
+                    const anomalousGroups = Object.values(fingerprintGroups).filter(g => g.isAnomalous);
+                    if (anomalousGroups.length > 0) {
+                        anomalousGroups.forEach(group => {
+                            const anomaliesByTest = {};
+                            group.results.forEach(result => {
+                                const testType = result.testType || 'Неизвестный тест';
+                                if (!anomaliesByTest[testType])
+                                    anomaliesByTest[testType] = new Set();
+                                anomaliesByTest[testType].add(`${result.userInfo.lastName} ${result.userInfo.firstName}`);
+                            }
+                            );
+                            Object.entries(anomaliesByTest).forEach( ([test,users]) => {
+                                if (users.size > 1)
+                                    report.details.push(`<b>Тест "${escapeHtml(test)}", Группа ...${group.results[0].fingerprintHash.slice(-10)}:</b> ${[...users].join(', ')}`);
+                            }
+                            );
+                        }
+                        );
+                    }
+                    if (report.details.length === 0)
+                        report.details.push('Подозрительных совпадений (разные пользователи на одном тесте с одного устройства) не найдено.');
+                } else if (type === 'violations') {
+                    report.title = '👁️ Обнаружены нарушения правил тестирования';
+                    report.severity = 'warning';
+                    const anomalies = allResults.filter(r => (r.sessionMetrics.totalFocusLoss > settings.focusThreshold) || (r.sessionMetrics.totalBlurTime > settings.blurThreshold) || (r.sessionMetrics.printAttempts > settings.printThreshold));
+                    if (anomalies.length > 0) {
+                        anomalies.forEach(r => {
+                            let details = [];
+                            if (r.sessionMetrics.totalFocusLoss > settings.focusThreshold)
+                                details.push(`Потери фокуса: ${r.sessionMetrics.totalFocusLoss}`);
+                            if (r.sessionMetrics.totalBlurTime > settings.blurThreshold)
+                                details.push(`Время вне фокуса: ${r.sessionMetrics.totalBlurTime}с`);
+                            if (r.sessionMetrics.printAttempts > settings.printThreshold)
+                                details.push(`Попытки печати: ${r.sessionMetrics.printAttempts}`);
+                            report.details.push(`<b>${r.userInfo.lastName} ${r.userInfo.firstName}</b> (Тест: ${r.testType}): ${details.join(', ')}`);
+                        }
+                        );
+                    } else
+                        report.details.push(`Подозрительной активности (нарушений фокуса или попыток печати) не найдено.`);
+                } else if (type === 'mouse') {
+                    report.title = '🖱️ Обнаружены похожие траектории мыши';
+                    report.severity = 'warning';
+                    report.isList = false;
+                    let suspiciousPairs = new Map();
+                    for (let i = 0; i < allResults.length; i++) {
+                        for (let j = i + 1; j < allResults.length; j++) {
+                            const r1 = allResults[i]
+                              , r2 = allResults[j];
+                            if (r1.testType !== r2.testType)
+                                continue;
+                            const n1 = `${r1.userInfo.lastName} ${r1.userInfo.firstName}`.toLowerCase()
+                              , n2 = `${r2.userInfo.lastName} ${r2.userInfo.firstName}`.toLowerCase();
+                            const key = [n1, n2].sort().join(' & ');
+                            if (n1 !== n2 && r1.behavioralMetrics?.perQuestion && r2.behavioralMetrics?.perQuestion) {
+                                const numQ = Math.min(r1.behavioralMetrics.perQuestion.length, r2.behavioralMetrics.perQuestion.length);
+                                for (let q = 0; q < numQ; q++) {
+                                    const f1 = extractMouseFeatures(r1.behavioralMetrics.perQuestion[q]?.mouseMovements)
+                                      , f2 = extractMouseFeatures(r2.behavioralMetrics.perQuestion[q]?.mouseMovements);
+                                    const sim = compareQuestionProfiles(f1, f2);
+                                    if (sim > (settings.mouseThreshold / 100)) {
+                                        if (!suspiciousPairs.has(key))
+                                            suspiciousPairs.set(key, {
+                                                u1: n1,
+                                                u2: n2,
+                                                matches: [],
+                                                test: r1.testType,
+                                                fpMatch: (r1.fingerprint?.privacySafeHash || 'a') === (r2.fingerprint?.privacySafeHash || 'b')
+                                            });
+                                        suspiciousPairs.get(key).matches.push({
+                                            q: q + 1,
+                                            s: sim
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (suspiciousPairs.size > 0)
+                        suspiciousPairs.forEach(p => {
+                            const detailString = `<b>Пара: ${escapeHtml(p.u1)} и ${escapeHtml(p.u2)}</b> (Тест: ${escapeHtml(p.test)}). Сходство на вопросах: ${p.matches.map(m => `#${m.q} (${(m.s * 100).toFixed(0)}%)`).join(', ')} ${p.fpMatch ? `<b style="color: var(--danger-color);">(ОТПЕЧАТОК СОВПАДАЕТ!)</b>` : ''}`;
+                            report.details.push(detailString);
+                        }
+                        );
+                    else
+                        report.details.push(`Подозрительно похожих движений мыши (сходство > ${settings.mouseThreshold}%) не найдено.`);
+                }
+
+                const detailsHTML = report.isList ? `<ul>${report.details.map(d => `<li>${d}</li>`).join('')}</ul>` : report.details.map(d => `<p>${d}</p>`).join('');
+                container.innerHTML = `<div class="anomaly-card ${report.severity}"><div class="anomaly-header"><div class="anomaly-icon ${report.severity}">!</div><h4>${report.title}</h4></div>${detailsHTML}</div>`;
+            }
+
+            function extractMouseFeatures(movements) {
+                if (!movements || movements.length < 5)
+                    return null;
+                let totalTime = (movements[movements.length - 1][2] - movements[0][2]) / 1000;
+                if (totalTime <= 0)
+                    return null;
+                let speeds = [];
+                for (let i = 1; i < movements.length; i++) {
+                    const dist = Math.sqrt(Math.pow(movements[i][0] - movements[i - 1][0], 2) + Math.pow(movements[i][1] - movements[i - 1][1], 2));
+                    const timeDelta = (movements[i][2] - movements[i - 1][2]) / 1000;
+                    if (timeDelta > 0) {
+                        const speed = dist / timeDelta;
+                        if (isFinite(speed))
+                            speeds.push(speed);
+                    }
+                }
+                const avg = arr => arr.length ? arr.reduce( (a, b) => a + b, 0) / arr.length : 0;
+                return {
+                    speed: avg(speeds)
+                };
+            }
+            function compareQuestionProfiles(f1, f2) {
+                if (!f1 || !f2)
+                    return 0;
+                const diff = Math.abs(f1.speed - f2.speed);
+                const maxSpeed = Math.max(f1.speed, f2.speed);
+                if (maxSpeed === 0)
+                    return 1;
+                return 1 - (diff / maxSpeed);
+            }
+
+            // --- Детальное сравнение ---
+            function renderComparisonUserList(results) {
+                const listContainer = document.getElementById('comparison-user-list');
+                if (!listContainer)
+                    return;
+                listContainer.innerHTML = results.map(result => {
+                    const isSelected = selectedForComparison.has(result.cardId);
+                    const tr = result.testResults || {};
+                    const ui = result.userInfo || {};
+                    const testType = result.testType || 'N/A';
+                    const scoreClass = `grade-${tr.grade?.class || 'poor'}`.replace('unsatisfactory', 'poor');
+
+                    return `
+                <div class="comparison-list-card ${isSelected ? 'selected' : ''}" onclick="toggleUserSelection('${result.cardId}')">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''} readOnly>
+                    <div class="info">
+                        <h4>${escapeHtml(ui.lastName)} ${escapeHtml(ui.firstName)}</h4>
+                        <p>${new Date(result.sessionMetrics.startTime).toLocaleString('ru-RU')} (${escapeHtml(testType)})</p>
+                    </div>
+                    <div class="score ${scoreClass}">${tr.percentage}%</div>
+                </div>`;
+                }
+                ).join('');
+            }
+
+            function toggleUserSelection(cardId) {
+                if (selectedForComparison.has(cardId))
+                    selectedForComparison.delete(cardId);
+                else
+                    selectedForComparison.add(cardId);
+                renderComparisonUserList(allResults);
+                // Re-render list to show selection
+                const btn = document.getElementById('detailedAnalysisBtn');
+                btn.disabled = selectedForComparison.size < 2;
+                btn.textContent = selectedForComparison.size > 0 ? `🔬 Провести анализ (${selectedForComparison.size} выбрано)` : '🔬 Провести анализ';
+            }
+
+            function runDetailedAnalysis() {
+                if (selectedForComparison.size < 2) {
+                    alert("Выберите как минимум двух пользователей для сравнения.");
+                    return;
+                }
+                ;const selectedResults = allResults.filter(r => selectedForComparison.has(r.cardId));
+                const container = document.getElementById('comparison-results-panel');
+                Object.values(charts).forEach(chart => chart.destroy());
+                charts = {};
+                container.innerHTML = createDetailedAnalysisHTML(selectedResults);
+                renderComparisonCharts(selectedResults);
+            }
+
+            function createDetailedAnalysisHTML(results) {
+                const names = results.map(r => `${r.userInfo.lastName} ${r.userInfo.firstName}`).join(' vs ');
+                return `
+                <h3>Детальное сравнение: ${names}</h3>
+                <div class="analysis-section"><h3>Сравнение отпечатков (Fingerprint)</h3><div class="analysis-content">${createFingerprintTable(results)}</div></div>
+                <div class="analysis-section"><h3>Анализ нарушений</h3><div class="charts-container" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));"><div><h4>Количество потерь фокуса</h4><canvas id="focusLossChart"></canvas></div><div><h4>Время вне фокуса (сек)</h4><canvas id="blurTimeChart"></canvas></div><div><h4>Попытки печати/скриншота</h4><canvas id="printAttemptsChart"></canvas></div></div></div>
+                <div class="analysis-section"><h3>Поведенческий анализ (по вопросам)</h3><div class="charts-container"><div><h4>Время ответа (мс)</h4><canvas id="latencyChart"></canvas></div><div><h4>Количество смен ответа</h4><canvas id="answerChangesChart"></canvas></div></div></div>
+                <div class="analysis-section"><h3>Клавиатурный почерк</h3><div class="charts-container"><div><h4>Среднее удержание клавиши (мс)</h4><canvas id="keyHoldChart"></canvas></div><div><h4>Средняя пауза (мс)</h4><canvas id="keyFlightChart"></canvas></div></div></div>
+                <div class="analysis-section"><h3>Визуализация движений мыши</h3><div class="analysis-content"><label for="questionSelector">Выберите вопрос:</label><select id="questionSelector" class="filter-input" style="max-width:200px; display:inline-block; margin-left:1rem;"></select><canvas id="mouseTrajectoryCanvas" width="800" height="400"></canvas></div></div>
+            `;
+            }
+
+            function renderComparisonCharts(results) {
+                const labels = results.map(r => `${r.userInfo.lastName} ${r.userInfo.firstName.charAt(0)}.`);
+                const colors = results.map( (_, i) => USER_COLORS[i % USER_COLORS.length]);
+                createBarChart('focusLossChart', 'кол-во', labels, results.map(r => r.sessionMetrics?.totalFocusLoss || 0), false, colors);
+                createBarChart('blurTimeChart', 'секунд', labels, results.map(r => r.sessionMetrics?.totalBlurTime || 0), false, colors);
+                createBarChart('printAttemptsChart', 'кол-во', labels, results.map(r => r.sessionMetrics?.printAttempts || 0), false, colors);
+                createBarChart('keyHoldChart', 'мс', labels, results.map(r => calculateKeyboardAvg(r.behavioralMetrics?.keyboard, 'holdTime')), false, colors);
+                createBarChart('keyFlightChart', 'мс', labels, results.map(r => calculateKeyboardAvg(r.behavioralMetrics?.keyboard, 'flightTime')), false, colors);
+                const numQuestions = Math.max(0, ...results.map(r => r.behavioralMetrics?.perQuestion?.length || 0));
+                const qLabels = Array.from({
+                    length: numQuestions
+                }, (_, i) => `В${i + 1}`);
+                const latencyDS = results.map( (r, i) => ({
+                    label: labels[i],
+                    data: r.behavioralMetrics?.perQuestion?.map(q => q?.latency || 0) || [],
+                    borderColor: colors[i],
+                    tension: 0.1,
+                    fill: false
+                }));
+                createLineChart('latencyChart', '', qLabels, latencyDS);
+                const changesDS = results.map( (r, i) => ({
+                    label: labels[i],
+                    data: r.behavioralMetrics?.perQuestion?.map(q => q?.answerChanges || 0) || [],
+                    backgroundColor: colors[i]
+                }));
+                createBarChart('answerChangesChart', 'кол-во', qLabels, changesDS, true);
+                setupMouseVisualizer(results);
+            }
+
+            function createFingerprintTable(results) {
+                let table = '<table class="comparison-table">';
+                const headers = results.map(r => `<th>${escapeHtml(r.userInfo.lastName)} ${escapeHtml(r.userInfo.firstName)}<br><small>(${escapeHtml(r.testType)})</small></th>`).join('');
+                table += `<thead><tr><th>Параметр</th>${headers}</tr></thead><tbody>`;
+                const keys = {
+                    "Хеш": r => r.fingerprint?.privacySafeHash,
+                    "User Agent": r => r.fingerprint?.privacySafe?.userAgent,
+                    "Платформа": r => r.fingerprint?.privacySafe?.platform,
+                    "WebGL": r => r.fingerprint?.privacySafe?.webGLRenderer,
+                    "Часовой пояс": r => r.fingerprint?.heavy?.timezone
+                };
+                for (const key in keys) {
+                    const values = results.map(keys[key]);
+                    const allMatch = values.every(v => v && v === values[0]);
+                    const rowClass = allMatch ? 'match' : 'mismatch';
+                    table += `<tr><td>${key}</td>`;
+                    values.forEach(val => {
+                        table += `<td class="${rowClass}"><div>${escapeHtml(val) || 'N/A'}</div></td>`;
+                    }
+                    );
+                    table += '</tr>';
+                }
+                return table + '</tbody></table>';
+            }
+            function createBarChart(id, label, labels, data, stacked=false, colors) {
+                const ctx = document.getElementById(id)?.getContext('2d');
+                if (!ctx)
+                    return;
+                const datasets = (typeof data[0] === 'object' && data[0] !== null) ? data : [{
+                    label,
+                    data,
+                    backgroundColor: colors || USER_COLORS
+                }];
+                charts[id] = new Chart(ctx,{
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                stacked
+                            },
+                            x: {
+                                stacked
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: datasets.length > 1
+                            }
+                        }
+                    }
+                });
+            }
+            function createLineChart(id, label, labels, datasets) {
+                const ctx = document.getElementById(id)?.getContext('2d');
+                if (!ctx)
+                    return;
+                charts[id] = new Chart(ctx,{
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets
+                    }
+                });
+            }
+
+            function setupMouseVisualizer(results) {
+                const selector = document.getElementById('questionSelector');
+                if (!selector)
+                    return;
+                selector.innerHTML = '';
+                const allSameTest = results.every(r => r.testType === results[0].testType);
+                const canvas = document.getElementById('mouseTrajectoryCanvas');
+                const container = canvas.parentElement;
+
+                // Clear previous messages
+                const oldMsg = container.querySelector('.mouse-vis-message');
+                if (oldMsg)
+                    oldMsg.remove();
+
+                if (!allSameTest) {
+                    canvas.style.display = 'none';
+                    selector.style.display = 'none';
+                    selector.insertAdjacentHTML('afterend', '<p class="mouse-vis-message" style="margin-top:1rem; color:var(--text-secondary);">Сравнение мыши доступно только для одинаковых тестов</p>');
+                    return;
+                }
+                canvas.style.display = 'block';
+                selector.style.display = 'inline-block';
+                const numQuestions = Math.max(0, ...results.map(r => r.behavioralMetrics?.perQuestion?.length || 0));
+                for (let i = 0; i < numQuestions; i++)
+                    selector.add(new Option(`Вопрос ${i + 1}`,i));
+                const drawFunc = () => drawMouseTrajectory(results, selector.value);
+                selector.addEventListener('change', drawFunc);
+                drawFunc();
+            }
+
+            function drawMouseTrajectory(results, qIndex) {
+                const canvas = document.getElementById('mouseTrajectoryCanvas');
+                if (!canvas)
+                    return;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                results.forEach( (result, i) => {
+                    const movements = result.behavioralMetrics?.perQuestion?.[qIndex]?.mouseMovements;
+                    if (!movements || movements.length < 2)
+                        return;
+                    const bounds = {
+                        minX: Math.min(...movements.map(p => p[0])),
+                        maxX: Math.max(...movements.map(p => p[0])),
+                        minY: Math.min(...movements.map(p => p[1])),
+                        maxY: Math.max(...movements.map(p => p[1]))
+                    };
+                    const scale = Math.min(canvas.width / (bounds.maxX - bounds.minX || 1), canvas.height / (bounds.maxY - bounds.minY || 1)) * 0.9;
+                    const color = USER_COLORS[i % USER_COLORS.length];
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    movements.forEach( (p, j) => {
+                        const x = (p[0] - bounds.minX) * scale + (canvas.width * 0.05);
+                        const y = (p[1] - bounds.minY) * scale + (canvas.height * 0.05);
+                        if (j === 0)
+                            ctx.moveTo(x, y);
+                        else
+                            ctx.lineTo(x, y);
+                    }
+                    );
+                    ctx.stroke();
+                    const startX = (movements[0][0] - bounds.minX) * scale + (canvas.width * 0.05)
+                      , startY = (movements[0][1] - bounds.minY) * scale + (canvas.height * 0.05);
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(startX, startY, 5, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                );
+            }
+
+            function calculateKeyboardAvg(data, metric) {
+                if (!data)
+                    return 0;
+                if (metric === 'holdTime') {
+                    const all = Object.values(data).flat().map(k => k.holdTime).filter(t => t > 0);
+                    return all.length ? all.reduce( (a, b) => a + b, 0) / all.length : 0;
+                }
+                if (metric === 'flightTime') {
+                    let total = 0
+                      , count = 0;
+                    const all = Object.values(data).flat().sort( (a, b) => a.downTime - b.downTime);
+                    for (let i = 1; i < all.length; i++) {
+                        const f = all[i].downTime - all[i - 1].upTime;
+                        if (f > 0 && f < 2000) {
+                            total += f;
+                            count++;
+                        }
+                    }
+                    return count ? total / count : 0;
+                }
+                return 0;
+            }
+
+            // --- Функции от Claude (Статистика, Профиль, Настройки) ---
+            function generateStatistics() {
+                updateStatisticsCards();
+                initStatisticsCharts();
+            }
+
+            function updateStatisticsCards() {
+                if (!allResults.length)
+                    return;
+                document.getElementById('totalTests').textContent = allResults.length;
+                const avgScore = allResults.length ? allResults.reduce( (sum, r) => sum + r.testResults.percentage, 0) / allResults.length : 0;
+                document.getElementById('averageScore').textContent = `${Math.round(avgScore)}%`;
+                const anomaliesCount = allResults.filter(r => (r.sessionMetrics.totalFocusLoss > settings.focusThreshold || r.sessionMetrics.totalBlurTime > settings.blurThreshold || r.sessionMetrics.printAttempts > settings.printThreshold)).length;
+                document.getElementById('anomaliesCount').textContent = anomaliesCount;
+                const uniqueUsers = new Set(allResults.map(r => `${r.userInfo.lastName} ${r.userInfo.firstName}`)).size;
+                document.getElementById('uniqueUsers').textContent = uniqueUsers;
+            }
+
+            function initStatisticsCharts() {
+                Object.values(charts).forEach(chart => chart.destroy());
+                const gradesCtx = document.getElementById('gradesChart')?.getContext('2d');
+                if (gradesCtx) {
+                    const gradesCounts = {
+                        'Отлично': 0,
+                        'Хорошо': 0,
+                        'Удовлетворительно': 0,
+                        'Неудовлетворительно': 0,
+                        'Плохо': 0
+                    };
+                    allResults.forEach(r => {
+                        const grade = r.testResults.grade.text;
+                        if (grade in gradesCounts)
+                            gradesCounts[grade]++;
+                    }
+                    );
+                    const sortedGrades = Object.entries(gradesCounts).sort( ([,a], [,b]) => b - a);
+                    charts['grades'] = new Chart(gradesCtx,{
+                        type: 'bar',
+                        data: {
+                            labels: sortedGrades.map(g => g[0]),
+                            datasets: [{
+                                label: 'Количество студентов',
+                                data: sortedGrades.map(g => g[1]),
+                                backgroundColor: ['rgba(5, 150, 105, 0.7)', 'rgba(37, 99, 235, 0.7)', 'rgba(217, 119, 6, 0.7)', 'rgba(220, 38, 38, 0.7)', 'rgba(100, 116, 139, 0.7)']
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                const activityCtx = document.getElementById('activityChart')?.getContext('2d');
+                if (activityCtx) {
+                    const dailyActivity = {};
+                    allResults.forEach(r => {
+                        const date = new Date(r.sessionMetrics.startTime).toLocaleDateString('ru-RU');
+                        dailyActivity[date] = (dailyActivity[date] || 0) + 1;
+                    }
+                    );
+                    const sortedDates = Object.keys(dailyActivity).sort( (a, b) => new Date(a.split('.').reverse().join('-')) - new Date(b.split('.').reverse().join('-')));
+                    charts['activity'] = new Chart(activityCtx,{
+                        type: 'line',
+                        data: {
+                            labels: sortedDates,
+                            datasets: [{
+                                label: 'Количество тестов',
+                                data: sortedDates.map(date => dailyActivity[date]),
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                const anomaliesCtx = document.getElementById('anomaliesChart')?.getContext('2d');
+                if (anomaliesCtx) {
+                    const userAnomalies = {};
+                    allResults.forEach(r => {
+                        const userName = `${r.userInfo.lastName} ${r.userInfo.firstName}`;
+                        let count = 0;
+                        if (r.sessionMetrics.totalFocusLoss > settings.focusThreshold)
+                            count++;
+                        if (r.sessionMetrics.totalBlurTime > settings.blurThreshold)
+                            count++;
+                        if (r.sessionMetrics.printAttempts > settings.printThreshold)
+                            count++;
+                        if (count > 0)
+                            userAnomalies[userName] = (userAnomalies[userName] || 0) + count;
+                    }
+                    );
+                    const topUsers = Object.entries(userAnomalies).sort( ([,a], [,b]) => b - a).slice(0, 5);
+                    charts['anomalies'] = new Chart(anomaliesCtx,{
+                        type: 'bar',
+                        data: {
+                            labels: topUsers.map( ([name]) => name),
+                            datasets: [{
+                                label: 'Количество аномалий',
+                                data: topUsers.map( ([,count]) => count),
+                                backgroundColor: '#dc2626'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            function openUserProfile(lastName, firstName) {
+                if (!lastName && !firstName)
+                    return;
+                const userTests = allResults.filter(r => r.userInfo.lastName === lastName && r.userInfo.firstName === firstName).sort( (a, b) => new Date(b.sessionMetrics.startTime) - new Date(a.sessionMetrics.startTime));
+                if (userTests.length === 0)
+                    return;
+                document.getElementById('profileTitle').textContent = `👤 Профиль: ${lastName} ${firstName}`;
+                document.getElementById('profileContent').innerHTML = generateUserProfileContent(userTests);
+                document.getElementById('userProfileModal').style.display = 'block';
+            }
+
+            function generateUserProfileContent(userTests) {
+                const latestTest = userTests[0];
+
+                const createErrorsList = (test) => {
+                    if (!test.testResults.incorrectQuestionsList || test.testResults.incorrectQuestionsList.length === 0) {
+                        return '<li>Ошибок нет.</li>';
+                    }
+                    return test.testResults.incorrectQuestionsList.map(q => `<li style="padding: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                        <strong>Вопрос:</strong> ${escapeHtml(q.text)}<br>
+                        <em style="color: var(--text-secondary);">Статус: ${escapeHtml(q.type)}</em>
+                    </li>`).join('');
+                }
+                ;
+
+			    return `
+			        <div class="stats-overview" style="margin-bottom: 1rem;">
+			            <div class="stat-card">
+			                <div class="stat-value">${userTests.length}</div>
+			                <div class="stat-label">Всего попыток</div>
+			            </div>
+			            <div class="stat-card">
+			                <div class="stat-value">${latestTest.testResults.percentage}%</div>
+			                <div class="stat-label">Последний результат</div>
+			            </div>
+			            <div class="stat-card">
+			                <div class="stat-value">${Math.max(...userTests.map(t => t.testResults.percentage))}%</div>
+			                <div class="stat-label">Лучший результат</div>
+			            </div>
+			        </div>
+        
+			        <div class="chart-container">
+			            <h4>История попыток</h4>
+			            <table class="comparison-table">
+			                <thead>
+			                    <tr>
+			                        <th style="padding: 0.75rem; text-align: left;">Дата</th>
+			                        <th style="padding: 0.75rem; text-align: left;">Результат</th>
+			                        <th style="padding: 0.75rem; text-align: left;">Оценка</th>
+			                        <th style="padding: 0.75rem; text-align: left;">Аномалии</th>
+			                        <th style="padding: 0.75rem; text-align: left;">Действия</th>
+			                    </tr>
+			                </thead>
+			                <tbody>
+			                    ${userTests.map(test => {
+			                        const hasAnomalies = test.sessionMetrics.totalFocusLoss > settings.focusThreshold || test.sessionMetrics.totalBlurTime > settings.blurThreshold || test.sessionMetrics.printAttempts > settings.printThreshold;
+			                        const hasErrors = test.testResults.incorrectAnswers > 0;
+                        
+			                        // Используем правильный sessionId для журнала событий
+			                        const sessionId = test.sessionId || test.cardId; 
+
+			                        return `
+			                        <tr>
+									    <td style="padding: 0.75rem;">${new Date(test.sessionMetrics.startTime).toLocaleString('ru-RU')}<br><small style="color:var(--text-secondary)">IP: ${test.clientIp || 'N/A'}</small></td>
+			                            <td style="padding: 0.75rem;">${test.testResults.percentage}%</td>
+			                            <td style="padding: 0.75rem;">
+			                                <span class="grade-badge grade-${test.testResults.grade.class}">${test.testResults.grade.text}</span>
+			                            </td>
+			                            <td style="padding: 0.75rem;">${hasAnomalies ? '⚠️ Да' : '✅ Нет'}</td>
+			                            <td style="padding: 0.75rem;">
+			                                ${hasErrors ? `<a href="#" onclick="event.preventDefault(); toggleErrorDetails('${test.cardId}')">Ошибки</a> | ` : ''}
+			                                <a href="#" onclick="event.preventDefault(); showEventLog('${sessionId}')">Журнал</a>
+			                            </td>
+			                        </tr>
+			                        <tr id="details-${test.cardId}" class="hidden" style="background-color: var(--background-color);">
+			                            <td colspan="5" style="padding: 1rem;">
+			                                <strong style="color: var(--danger-color);">Вопросы с неверными ответами:</strong>
+			                                <ul style="list-style-type: none; margin-top: 0.5rem; padding-left: 1rem;">
+			                                    ${createErrorsList(test)}
+			                                </ul>
+			                            </td>
+			                        </tr>
+			                        `;
+			                    }).join('')}
+			                </tbody>
+			            </table>
+			        </div>
+			    `;
+			}
+
+            function toggleErrorDetails(cardId) {
+                const detailsRow = document.getElementById(`details-${cardId}`);
+                if (detailsRow) {
+                    const isHidden = detailsRow.classList.toggle('hidden');
+                    const result = allResults.find(r => r.cardId === cardId);
+                    if (isHidden && result) {
+                        let sessionId;
+                        if (typeof result.sessionId === 'string')
+                            sessionId = result.sessionId;
+                        else if (typeof result.sessionId === 'object' && result.sessionId !== null)
+                            sessionId = result.sessionId.cookie;
+                        else
+                            sessionId = result.cardId;
+
+                        const logRow = document.getElementById(`event-log-row-${sessionId}`);
+                        if (logRow && !logRow.classList.contains('hidden')) {
+                            logRow.classList.add('hidden');
+                            const link = document.querySelector(`a[onclick*="showEventLog('${sessionId}'"]`);
+                            if (link)
+                                link.textContent = "Журнал событий";
+                        }
+                    }
+                }
+            }
+
+			async function showEventLog(sessionId) {
+				const modal = document.getElementById('eventLogModal');
+				const content = document.getElementById('eventLogContent');
+				const title = document.getElementById('eventLogTitle');
+				if (!modal || !content || !title) return;
+				
+				title.textContent = `📜 Журнал событий (${sessionId.slice(0,8)}...)`;
+				content.innerHTML = '<div class="loading">Загрузка событий...</div>';
+				modal.style.display = 'block';
+
+				try {
+					const response = await fetch(`/api/get_events/${sessionId}`);
+					if (!response.ok) throw new Error('Network response was not ok');
+					const events = await response.json();
+					content.innerHTML = renderEventLog(events);
+				} catch (error) {
+					console.error("Failed to fetch event log:", error);
+					content.innerHTML = '<p style="color: var(--color-error);">Не удалось загрузить журнал событий.</p>';
+				}
+			}
+			
+			function closeEventLog() {
+				const modal = document.getElementById('eventLogModal');
+				if(modal) modal.style.display = 'none';
+			}
+
+            function renderEventLog(events) {
+                if (events.length === 0)
+                    return '<p>Для этой сессии не зафиксировано ни одного события.</p>';
+                const eventTypeTranslations = {
+                    'test_started': 'Тест начат',
+                    'focus_loss': 'Потеря фокуса',
+                    'print_attempt': 'Попытка печати',
+                    'screenshot_attempt': 'Попытка скриншота',
+                    'test_finished': 'Тест завершен'
+                };
+                const tableRows = events.map(event => {
+                    const timestamp = new Date(event.event_timestamp).toLocaleTimeString('ru-RU');
+                    const type = eventTypeTranslations[event.event_type] || event.event_type;
+                    const details = event.details ? JSON.parse(event.details) : {};
+                    let detailsText = '';
+                    if (details.question)
+                        detailsText = `На вопросе №${details.question}`;
+                    return `<tr><td>${timestamp}</td><td>${type}</td><td>${detailsText}</td></tr>`;
+                }
+                ).join('');
+                return `<div class="event-log-container"><table class="event-log-table"><thead><tr><th>Время</th><th>Событие</th><th>Детали</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
+            }
+
+            function closeUserProfile() {
+                document.getElementById('userProfileModal').style.display = 'none';
+            }
+            function openSettings() {
+                document.getElementById('focusThreshold').value = settings.focusThreshold;
+                document.getElementById('blurThreshold').value = settings.blurThreshold;
+                document.getElementById('mouseThreshold').value = settings.mouseThreshold;
+                document.getElementById('printThreshold').value = settings.printThreshold;
+                document.getElementById('settingsModal').style.display = 'block';
+            }
+            function closeSettings() {
+                document.getElementById('settingsModal').style.display = 'none';
+            }
+
+            function saveSettings() {
+                settings.focusThreshold = parseInt(document.getElementById('focusThreshold').value);
+                settings.blurThreshold = parseInt(document.getElementById('blurThreshold').value);
+                settings.mouseThreshold = parseInt(document.getElementById('mouseThreshold').value);
+                settings.printThreshold = parseInt(document.getElementById('printThreshold').value);
+                localStorage.setItem('analysisSettings', JSON.stringify(settings));
+                closeSettings();
+                const notification = document.createElement('div');
+                notification.style.cssText = `position: fixed; top: 20px; right: 20px; background: var(--success-color); color: white; padding: 1rem 1.5rem; border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 1001; animation: slideIn 0.3s ease;`;
+                notification.textContent = '✅ Настройки сохранены';
+                document.body.appendChild(notification);
+                setTimeout( () => {
+                    notification.remove();
+                }
+                , 3000);
+            }
+            function loadSettings() {
+                const saved = localStorage.getItem('analysisSettings');
+                if (saved) {
+                    settings = {
+                        ...settings,
+                        ...JSON.parse(saved)
+                    };
+                }
+            }
+
+            function resetFilters() {
+                document.getElementById('lastNameFilter').value = '';
+                document.getElementById('firstNameFilter').value = '';
+                document.getElementById('fingerprintFilter').value = '';
+                document.getElementById('anomaly-reports').innerHTML = '';
+                selectedForComparison.clear();
+                applyFiltersAndRender();
+                if (currentTab === 'comparison') {
+                    const btn = document.getElementById('detailedAnalysisBtn');
+                    btn.disabled = true;
+                    btn.textContent = '🔬 Провести анализ';
+                    document.getElementById('comparison-results-panel').innerHTML = `<div class="comparison-analysis-placeholder"><h4>Панель анализа</h4><p>Выберите двух или более пользователей из списка слева и нажмите "Провести анализ".</p></div>`;
+                }
+            }
+			// ========== НАЧАЛО: НОВЫЕ ФУНКЦИИ ДЛЯ ПРЕРВАННЫХ СЕССИЙ ==========
+			async function loadAndRenderAbandonedSessions() {
+			    const container = document.getElementById('abandoned-sessions-container');
+			    container.innerHTML = '<div class="loading">Загрузка прерванных сессий...</div>';
+			    try {
+			        const response = await fetch('/api/get_abandoned_sessions');
+			        if (!response.ok) throw new Error('Network error');
+        
+			        // 1. Сохраняем загруженные сессии в глобальную переменную
+			        allAbandonedSessions = await response.json();
+        
+			        // 2. Отображаем все сессии по умолчанию
+			        renderAbandonedSessions('all'); 
+
+			        // 3. Устанавливаем обработчики для кнопок фильтра
+			        document.querySelectorAll('#abandoned-filters .filter-btn').forEach(btn => {
+			            btn.addEventListener('click', () => {
+			                document.querySelector('#abandoned-filters .filter-btn.active').classList.remove('active');
+			                btn.classList.add('active');
+			                renderAbandonedSessions(btn.dataset.filter);
+			            });
+			        });
+
+			    } catch (error) {
+			        console.error("Failed to load abandoned sessions:", error);
+			        container.innerHTML = '<p style="color: var(--color-error); text-align:center;">Не удалось загрузить данные.</p>';
+			    }
+			}
+
+			function renderAbandonedSessions(filter) {
+			    const container = document.getElementById('abandoned-sessions-container');
+    
+			    // Фильтруем данные из глобальной переменной
+			    const sessionsToRender = (filter === 'all') 
+			        ? allAbandonedSessions 
+			        : allAbandonedSessions.filter(s => s.sessionType === filter);
+
+			    if (sessionsToRender.length === 0) {
+			        container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Прерванных сессий такого типа не найдено.</p>';
+			        return;
+			    }
+
+			    container.innerHTML = `
+			        <table class="comparison-table">
+			            <thead>
+			                <tr>
+			                    <th>Пользователь</th>
+			                    <th>Время начала</th>
+			                    <th>Нарушения</th>
+			                    <th>Действия</th>
+			                </tr>
+			            </thead>
+			            <tbody>
+			                ${sessionsToRender.map(s => renderAbandonedSessionRow(s)).join('')}
+			            </tbody>
+			        </table>
+			    `;
+			}
+
+			
+			function renderAbandonedSessionRow(session) {
+				const ui = session.userInfo || {};
+				const counts = session.violationCounts || {};
+				const violations = `Фокус: ${counts.focusLoss}, Скриншоты: ${counts.screenshots}, Печать: ${counts.prints}`;
+	            const sessionType = session.sessionType || 'unknown';
+	            const typeBadge = sessionType === 'test' 
+	                ? '<span class="session-type-badge test">Тест</span>' 
+	                : '<span class="session-type-badge study">Обучение</span>';
+
+	            return `
+					<tr>
+                   	 <td>${escapeHtml(ui.lastName) || ''} ${escapeHtml(ui.firstName) || 'N/A'} ${typeBadge}</td>
+						<td>${new Date(session.startTime).toLocaleString('ru-RU')}<br><small style="color:var(--text-secondary)">IP: ${session.clientIp || 'N/A'}</small></td>
+						<td>${violations}</td>
+						<td>
+							<a href="#" onclick="event.preventDefault(); showEventLog('${session.sessionId}')">Журнал событий</a>
+						</td>
+					</tr>
+				`;
+			}
+			async function loadAndRenderBehaviorAnalysis() {
+				const container = document.getElementById('behavior-analysis-container');
+				container.innerHTML = '<div class="loading">Выполняется сложный анализ...</div>';
+				try {
+					const response = await fetch('/api/get_behavior_analysis');
+					if (!response.ok) throw new Error('Network error');
+					const sessions = await response.json();
+					
+					if (sessions.length === 0) {
+						container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Подозрительных сессий по данным критериям не найдено.</p>';
+						return;
+					}
+					container.innerHTML = sessions.map(s => renderBehaviorCard(s)).join('');
+				} catch (error) {
+					console.error("Failed to load behavior analysis:", error);
+					container.innerHTML = '<p style="color: var(--color-error); text-align:center;">Не удалось выполнить анализ.</p>';
+				}
+			}
+
+			function renderBehaviorCard(session) {
+				const ui = session.userInfo || {};
+				return `
+					<div class="behavior-card">
+						<h4>${escapeHtml(ui.lastName)} ${escapeHtml(ui.firstName)}</h4>
+						<div class="behavior-card-summary">
+							<span><strong>Результат теста:</strong> ${session.testResult.score}%</span>
+							<span><strong>Время теста:</strong> ${session.testResult.duration} сек</span>
+							<span><strong>Время обучения:</strong> ${session.studyInfo.duration} сек</span>
+						</div>
+						<p class="behavior-card-reason"><b>Заключение:</b> ${session.reason}</p>
+					</div>
+				`;
+			}			
+			// ========== КОНЕЦ: НОВЫХ ФУНКЦИЙ ==========	
+			async function loadAndRenderCertificates() {
+			    const container = document.getElementById('registry-container');
+			    container.innerHTML = '<div class="loading">Загрузка реестра...</div>';
+			    try {
+			        const response = await fetch('/api/get_certificates');
+			        if (!response.ok) throw new Error('Network error');
+			        const certificates = await response.json();
+        
+			        if (certificates.length === 0) {
+			            container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Выданных аттестатов пока нет.</p>';
+			            return;
+			        }
+			        container.innerHTML = renderCertificatesTable(certificates);
+			    } catch (error) {
+			        console.error("Failed to load certificates:", error);
+			        container.innerHTML = '<p style="color: var(--color-error); text-align:center;">Не удалось загрузить реестр.</p>';
+			    }
+			}
+
+			function renderCertificatesTable(certificates) {
+			    return `
+			        <table class="comparison-table">
+			            <thead>
+			                <tr>
+			                    <th>Номер аттестата</th>
+			                    <th>ФИО</th>
+			                    <th>Должность</th>
+			                    <th>Тип теста</th>
+			                    <th>Дата выдачи</th>
+			                    <th>Результат</th>
+			                </tr>
+			            </thead>
+			            <tbody>
+			                ${certificates.map(cert => `
+			                    <tr>
+			                        <td><strong>${escapeHtml(cert.document_number)}</strong></td>
+			                        <td>${escapeHtml(cert.user_fullname)}</td>
+			                        <td>${escapeHtml(cert.user_position)}</td>
+			                        <td>${escapeHtml(cert.test_type)}</td>
+			                        <td>${new Date(cert.issue_date).toLocaleString('ru-RU')}</td>
+			                        <td>${cert.score_percentage}%</td>
+			                    </tr>
+			                `).join('')}
+			            </tbody>
+			        </table>
+			    `;
+			}					
+            function escapeHtml(unsafe) {
+                if (typeof unsafe !== 'string')
+                    return '';
+                return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+        </script>
+    </body>
+</html>
