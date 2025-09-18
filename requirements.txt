@@ -1,0 +1,6 @@
+click
+Flask
+Flask-Cors
+gunicorn
+unidecode
+Werkzeug
