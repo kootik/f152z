@@ -39,6 +39,12 @@
   * **Библиотеки:** Chart.js (для графиков), jsPDF & html2canvas (для генерации PDF)
 
 -----
+Автоматически формируемое заключение от прохождении теста
+
+<img width="942" height="1292" alt="Image" src="https://github.com/user-attachments/assets/02320572-5bbf-4c26-a6cb-7fe0b33bafb3" />
+
+
+
 <img width="1057" height="1587" alt="Image" src="https://github.com/user-attachments/assets/6386bb6c-d02e-4fe3-bf4e-3a9657ca1b1f" />
 
 Панель администратора
