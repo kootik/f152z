@@ -19,4 +19,4 @@ def test_index_route(client):
     """
     response = client.get('/')
     assert response.status_code == 200
-    assert "Тест на знание основ информационной безопасности".encode('utf-8') in response.data
+	assert "Основы информационной безопасности".encode('utf-8') in response.data
