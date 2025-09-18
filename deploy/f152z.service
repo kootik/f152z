@@ -1,0 +1,40 @@
+# /etc/systemd/system/f152z.service
+
+[Unit]
+Description=Gunicorn instance to serve f152z Flask application
+# Запускаться после того, как сеть будет доступна
+After=network.target
+
+[Service]
+# Пользователь и группа, от которых будет запускаться Gunicorn
+# ЗАМЕНИТЕ 'ваш_пользователь' и 'ваша_группа' на реальные значения
+# Часто для веб-приложений используется пользователь www-data или создается специальный пользователь
+#User=admas
+#Group=www-data
+
+# Рабочая директория вашего проекта
+WorkingDirectory=/var/www/f152z
+
+# Путь к исполняемым файлам вашего виртуального окружения (если используется)
+# Это позволяет systemd находить gunicorn, установленный в venv
+Environment="PATH=/var/www/f152z/venv/flask_app/bin"
+
+# Команда для запуска Gunicorn
+# /var/www/f152z/venv/bin/gunicorn - путь к Gunicorn в вашем venv
+# --workers 3 - количество рабочих процессов (обычно 2 * <кол-во_ядер_CPU> + 1)
+# --bind unix:f152z.sock - Gunicorn будет слушать на Unix-сокете f152z.sock в WorkingDirectory
+# -m 007 - права доступа к сокету (пользователь и группа могут читать/писать/исполнять, остальные - ничего). 
+#          Это важно, чтобы ваш веб-сервер (Nginx) мог подключиться к сокету.
+# app:app - указывает Gunicorn найти объект 'app' в файле 'app.py'
+ExecStart=/var/www/f152z/venv/flask_app/bin/gunicorn --workers 3 --bind 0.0.0.0:5000 -m 007 app:app
+
+# Перезапускать сервис при сбое
+Restart=always
+
+# Стандартный вывод и ошибки будут направлены в системный журнал (journalctl)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# Запускать сервис при многопользовательском режиме системы
+WantedBy=multi-user.target
