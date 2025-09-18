@@ -164,7 +164,7 @@ flask init-db
 ```bash
 # Переходим в директорию и создаем папку для проекта
 cd /var/www/
-sudo git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> f152z
+sudo git clone https://github.com/kootik/f152z.git f152z
 cd f152z
 
 # Создаем виртуальное окружение
