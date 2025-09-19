@@ -1,0 +1,7 @@
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "pip" # For Python dependencies
+    directory: "/" # Location of requirements.txt
+    schedule:
+      interval: "weekly"
