@@ -84,6 +84,44 @@
             background-color: #ffebee;
             border-left: 5px solid #DB1F48;
         }
+        .navigation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-16);
+            margin: var(--space-32) 0;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+        }
+        
+        .btn--primary {
+            background-color: #198754;
+            color: white;
+        }
+
+        .btn--primary:hover {
+            background-color: #157347;
+        }
+        
+        .btn--secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn--secondary:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -247,7 +285,11 @@
             <p class="font-bold text-xl text-[#004369]">Заметили что-то подозрительное? Немедленно сообщите в службу ИБ!</p>
             <p class="text-gray-600">Ваша бдительность — наша общая безопасность.</p>
         </footer>
-
+        <div class="navigation-buttons">
+            <a href="\" class="btn btn--secondary">← Назад на портал</a>
+			 <a href="117study" class="btn btn--primary">Пройти обучение→</a>
+           
+        </div>
     </div>
 
     <!-- Локальное подключение Chart.js -->
