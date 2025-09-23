@@ -29,20 +29,64 @@
             --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             --font-size-base: 16px;
             --line-height-base: 1.7;
+			--line-height-tight: 1.2;
+            --line-height-normal: 1.5;
+			--font-weight-normal: 400;
+			--font-weight-medium: 500;
+			--font-weight-semibold: 550;
+			--font-weight-bold: 600;
+			--line-height-tight: 1.2;
+			--line-height-normal: 1.5;
+			--letter-spacing-tight: -0.01em;			
 
-            /* Spacing */
-            --space-8: 8px;
-            --space-16: 16px;
-            --space-24: 24px;
-            --space-32: 32px;
+			/* Spacing */
+			--space-0: 0;
+			--space-1: 1px;
+			--space-2: 2px;
+			--space-4: 4px;
+			--space-6: 6px;
+			--space-8: 8px;
+			--space-10: 10px;
+			--space-12: 12px;
+			--space-16: 16px;
+			--space-20: 20px;
+			--space-24: 24px;
+			--space-32: 32px;
 
             /* Border Radius */
+			--radius-sm: 6px;
+            --radius-base: 8px;
             --radius-md: 8px;
             --radius-lg: 12px;
+			/* Animation */
+			--duration-fast: 150ms;
+			--duration-normal: 250ms;
+			--ease-standard: cubic-bezier(0.16, 1, 0.3, 1);	
 
-            /* Shadows */
-            --shadow-md: 0 4px 6px -1px var(--color-shadow);
+           /* Shadows */
+			--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+			--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+			--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+			--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+			--shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+			/* Animation */
+			--duration-fast: 150ms;
+			--duration-normal: 250ms;
+			--ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+			/* Layout */
+			--container-sm: 640px;
+			--container-md: 768px;
+			--container-lg: 1024px;
+			--container-xl: 1280px;
+            }
+        /* --- Начало защиты от копирования --- */
+        body {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* Internet Explorer/Edge */
+            user-select: none;         /* Стандартный синтаксис */
         }
+        /* --- Конец защиты от копирования --- */
 
         body {
             margin: 0;
@@ -233,6 +277,73 @@
         .btn--secondary:hover {
             background-color: #5a6268;
         }
+        
+        /* ========== ADD THIS CSS BLOCK ========== */
+        .hidden { display: none !important; }
+
+		#watermark {
+			position: fixed;
+			top: 40vh;
+			; left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 2vw;
+			font-weight: var(--font-weight-bold);
+			color: rgb(94 82 64 / 15%);
+			pointer-events: none;
+			/* Чтобы не мешал кликать */
+			white-space: pre;
+			text-align: center;
+			z-index: 9999;
+			animation: drift 30s linear infinite alternate;
+		}
+
+		[data-color-scheme="dark"] #watermark {
+			color: rgba(255, 255, 255, 0.1);
+		}
+
+		@keyframes drift {
+			from {
+				transform: translate(-55%, -60%) rotate(-15deg);
+			}
+
+			to {
+				transform: translate(-45%, -40%) rotate(15deg);
+			}
+		}
+
+        #flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            color: var(--color-danger);
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        #flash-overlay:not(.hidden) {
+            display: flex;
+        }
+
+        @media print {
+            body > *:not(#print-block-message) {
+                display: none !important;
+            }
+            #print-block-message {
+                display: block !important;
+                text-align: center;
+                font-size: 24pt;
+                font-weight: bold;
+                padding: 50px;
+                color: #000;
+            }
+        }
+        /* ========== END CSS BLOCK ========== */
 
         @media (max-width: 768px) {
             .header h1 {
@@ -242,13 +353,16 @@
     </style>
 </head>
 <body>
+    <div id="watermark" class="hidden"></div>
+    <div id="flash-overlay" class="hidden"></div>
+    <div id="print-block-message" class="hidden">Печать учебных материалов запрещена.</div>
     <header class="header">
         <h1>Учебный курс: Информационная безопасность согласно Приказу ФСТЭК № 117</h1>
     </header>
 
     <div class="container">
         
-        <div class="module-card">
+        <div class="module-card" id="module-intro">
             <div class="module-card__header">
                 <h2>Введение: Новые правила игры</h2>
             </div>
@@ -260,7 +374,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+         <div class="module-card" id="module-1">
             <div class="module-card__header">
                 <h2>Модуль 1: Обращение с информацией ограниченного доступа</h2>
             </div>
@@ -288,7 +402,7 @@
             </div>
         </div>
         
-        <div class="module-card">
+        <div class="module-card" id="module-2">
              <div class="module-card__header">
                 <h2>Модуль 2: Парольная политика и правила аутентификации</h2>
             </div>
@@ -317,7 +431,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+        <div class="module-card" id="module-3">
              <div class="module-card__header">
                 <h2>Модуль 3: Безопасность при удалённой работе</h2>
             </div>
@@ -344,7 +458,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+        <div class="module-card" id="module-4">
              <div class="module-card__header">
                 <h2>Модуль 4: Правила использования мобильных устройств</h2>
             </div>
@@ -371,7 +485,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+        <div class="module-card" id="module-5">
              <div class="module-card__header">
                 <h2>Модуль 5: Противодействие фишингу и социальной инженерии</h2>
             </div>
@@ -399,7 +513,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+        <div class="module-card" id="module-6">
              <div class="module-card__header">
                 <h2>Модуль 6: Антивирусная защита и работа с файлами</h2>
             </div>
@@ -427,7 +541,7 @@
             </div>
         </div>
         
-        <div class="module-card">
+        <div class="module-card" id="module-7">
              <div class="module-card__header">
                 <h2>Модуль 7: Физическая безопасность</h2>
             </div>
@@ -450,7 +564,7 @@
             </div>
         </div>
 
-        <div class="module-card">
+        <div class="module-card" id="module-conclusion">
             <div class="module-card__header">
                 <h2>Заключение: Ваша роль в цепи защиты</h2>
             </div>
@@ -497,13 +611,147 @@
         </div>
 
         <div class="navigation-buttons">
-            <a href="#" class="btn btn--secondary">← Назад на портал</a>
-            <a href="#" class="btn btn--primary">Перейти к тестированию →</a>
+            <a href="\" class="btn btn--secondary">← Назад на портал</a>
+            <a href="117test" class="btn btn--primary">Перейти к тестированию →</a>
         </div>
     </div>
 
     <footer class="footer">
-        <p>&copy; 2025 Отдел Информационной Безопасности</p>
+        <p>&copy; 2025 Отдел информационно технического обеспечения и защиты информации</p>
     </footer>
+	
+	<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- INITIALIZE PROCTORING SYSTEM ---
+            let printAttempts = 0;
+            let maxScrollDepth = 0;
+            // Generate a unique ID for this study session
+            const sessionId = crypto.randomUUID ? crypto.randomUUID() : `study-session-${Date.now()}`;
+
+            // --- HELPER FUNCTIONS ---
+            const getCookie = (name) => {
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i = 0; i < ca.length; i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            };
+            const persistentId = getCookie('persistentUserId_infosec'); // Get the user's persistent ID
+
+            // --- EVENT LOGGING FUNCTION ---
+            const logEventToServer = async (eventType, details = {}) => {
+                const payload = {
+                    sessionId: sessionId,
+                    eventType: eventType,
+                    eventTimestamp: new Date().toISOString(),
+                    details: details
+                };
+                try {
+                    await fetch('/api/log_event', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (error) {
+                    console.error(`Failed to log event ${eventType}:`, error);
+                }
+            };
+
+            // --- TRACK USER ACTIVITY ---
+            
+            // --- WATERMARK ---
+            const watermark = document.getElementById('watermark');
+            if (watermark) {
+                const date = new Date();
+                let watermarkText = `Учебный материал 117\nМинистерство Природных Ресурсов\n${date.toLocaleDateString('ru-RU')}`;
+                if (persistentId) {
+                    watermarkText = `Идентификатор: ${persistentId.slice(0, 13)}\n${watermarkText}`;
+                }
+                watermark.innerText = watermarkText;
+                watermark.classList.remove('hidden');
+            }
+
+            // --- ACTIVITY TRACKING ---
+            window.addEventListener('scroll', () => {
+                const scrollPercent = Math.round((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100);
+                if (scrollPercent > maxScrollDepth) {
+                    const oldDepth = maxScrollDepth;
+                    maxScrollDepth = scrollPercent;
+                    // Log every 25% increment
+                    if (Math.floor(oldDepth / 25) < Math.floor(maxScrollDepth / 25)) {
+                        logEventToServer('scroll_depth_milestone', { 
+                            page: 'study-117',
+                            depth: `${Math.floor(maxScrollDepth / 25) * 25}%` 
+                        });
+                    }
+                }
+            }, { passive: true });
+
+            // 2. Track time spent viewing each module
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const moduleId = entry.target.id || 'introduction';
+                    if (entry.isIntersecting) {
+                        entry.target.dataset.viewStartTime = Date.now();
+                    } else {
+                        const startTime = entry.target.dataset.viewStartTime;
+                        if (startTime) {
+                            const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+                            if (durationSeconds > 5) { // Log if viewed for more than 5 seconds
+                                logEventToServer('module_view_time', { 
+                                    page: 'study-117',
+                                    module: moduleId, 
+                                    duration: durationSeconds 
+                                });
+                            }
+                            delete entry.target.dataset.viewStartTime;
+                        }
+                    }
+                });
+            }, { threshold: 0.5 }); // Triggers when 50% of a module is visible
+
+            document.querySelectorAll('.module-card').forEach(card => observer.observe(card));
+
+            // --- PRINT/SCREENSHOT PROCTORING ---
+            const handleKeyUpForPrintScreen = (e) => {
+                if (e.keyCode === 44) {
+                    printAttempts++;
+                    logEventToServer('screenshot_attempt', { page: 'study-117' });
+                    
+                    const overlay = document.getElementById('flash-overlay');
+                    if (overlay) {
+                        overlay.innerHTML = `Попытка ${printAttempts}:<br>Снятие скриншотов запрещено и зафиксировано.`;
+                        overlay.classList.remove('hidden');
+                        setTimeout(() => overlay.classList.add('hidden'), 1500);
+                    }
+                }
+            };
+            const handleBeforePrint = () => {
+                printAttempts++;
+                logEventToServer('print_attempt', { page: 'study-117' });
+            };
+            window.addEventListener('keyup', handleKeyUpForPrintScreen);
+            window.addEventListener('beforeprint', handleBeforePrint);
+
+            // --- LOG SESSION START ---
+            let userInfo = null;
+            try {
+                const savedInfo = localStorage.getItem('lastUserInfo');
+                if (savedInfo) userInfo = JSON.parse(savedInfo);
+            } catch (e) { console.warn('Could not read userInfo'); }
+            
+            logEventToServer('study_started', { 
+                page: 'study-117',
+                persistentId: persistentId, 
+                userInfo: userInfo 
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+    </script>
 </body>
 </html>
