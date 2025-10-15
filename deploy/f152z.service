@@ -14,7 +14,8 @@ After=network.target
 
 # Рабочая директория вашего проекта
 WorkingDirectory=/var/www/f152z
-
+Environment="SECRET_KEY=8b391a7a1ea3064ce7589fe025a428525f13f1e6d2662cf7"
+Environment="APP_SERVER_NAME=fz152.dprgek.loc:8443"
 # Путь к исполняемым файлам вашего виртуального окружения (если используется)
 # Это позволяет systemd находить gunicorn, установленный в venv
 Environment="PATH=/var/www/f152z/venv/flask_app/bin"
