@@ -1,27 +1,39 @@
 import os
 import json
 import sqlite3
-import click
+from contextlib import contextmanager
 from flask import Flask, request, jsonify, render_template, send_from_directory, g
 from flask_cors import CORS
 from datetime import datetime, timedelta
-import unidecode
 from werkzeug.middleware.proxy_fix import ProxyFix
 import traceback
 from typing import Dict, List, Optional, Tuple, Any
+import logging
+import secrets
+import re
+
+from flask_sock import Sock
+from flask_wtf.csrf import CSRFProtect, generate_csrf
+from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+import numpy as np
+from scipy.spatial.distance import euclidean
+from fastdtw import fastdtw
+import math
 
 # =============================================================================
-# КОНФИГУРАЦИЯ И КОНСТАНТЫ
+# CONFIGURATION & CONSTANTS
 # =============================================================================
 
-# Пути и директории
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, 'results_data')
 DATABASE_PATH = os.path.join(BASE_DIR, 'app_data.db')
 SSL_CERT_PATH = os.path.join(BASE_DIR, 'fz152.crt')
 SSL_KEY_PATH = os.path.join(BASE_DIR, 'fz152.key')
-
-# Пороги для поведенческого анализа
+MAX_RESULTS_PER_PAGE = int(os.environ.get('MAX_RESULTS_PER_PAGE', 1000))
+# Thresholds for behavioral analysis
 BEHAVIOR_THRESHOLDS = {
     'default': {
         'min_score': 90,
@@ -35,258 +47,316 @@ BEHAVIOR_THRESHOLDS = {
     }
 }
 
-# Соответствие типов тестов и страниц обучения
 TEST_TO_STUDY_PAGE_MAP = {
     'INFOSEC_117': 'study-117',
     'PD_152': 'studytest-152'
 }
 
-# Пороги для успешного прохождения теста
 PASSING_SCORE_THRESHOLD = 80
-
-# Максимальное время поиска связанной учебной сессии (в часах)
 MAX_STUDY_SESSION_LOOKUP_HOURS = 24
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
+PAUSE_THRESHOLD_SEC = 0.25
+MAX_DISTANCE_THRESHOLD_PX = 1000
+
+# Input validation constants
+MAX_SESSION_ID_LENGTH = 128
+SESSION_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+MAX_EVENT_TYPE_LENGTH = 64
 
 # =============================================================================
-# ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
+# APPLICATION INITIALIZATION
 # =============================================================================
+
+# SECRET_KEY must be set via environment variable
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    # Генерируем временный ключ, если он не задан
+    SECRET_KEY = secrets.token_hex(32) 
+    
+    # Выводим очень заметное предупреждение в лог
+    logger.warning(
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+        "!!! ВНИМАНИЕ: SECRET_KEY не установлен в переменных окружения.\n"
+        "!!! Используется временный, небезопасный ключ.\n"
+        "!!! Все сессии пользователей будут сброшены после перезапуска.\n"
+        "!!! ОБЯЗАТЕЛЬНО УСТАНОВИТЕ SECRET_KEY В ПРОДАКТИВЕ!\n"
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    )
+# --- NEW CODE: Add server name configuration ---
+# This helps Flask-WTF correctly validate the host in a proxied HTTPS setup.
+APP_SERVER_NAME = os.environ.get('APP_SERVER_NAME', None)
+PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'https')
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-CORS(app)
+app.config.from_mapping({
+    'SECRET_KEY': SECRET_KEY,
+    'SERVER_NAME': APP_SERVER_NAME,
+    'PREFERRED_URL_SCHEME': PREFERRED_URL_SCHEME,  # NEW: Force HTTPS in URL generation
+    'MAX_CONTENT_LENGTH': MAX_CONTENT_LENGTH,
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300,
+    'WTF_CSRF_TIME_LIMIT': None,
+    'WTF_CSRF_SSL_STRICT': True,
+    'WTF_CSRF_CHECK_DEFAULT': False,  # NEW: Only check when explicitly enabled
+})
 
-# Создание необходимых директорий
-if not os.path.exists(RESULTS_DIR):
-    os.makedirs(RESULTS_DIR)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+CORS(app, origins=["https://fz152.dprgek.loc:8443"], supports_credentials=True)
+
+csrf = CSRFProtect(app)
+sock = Sock(app)
+cache = Cache(app)
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
+clients = set()
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Create necessary directories
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # =============================================================================
-# РАБОТА С БАЗОЙ ДАННЫХ
+# INPUT VALIDATION HELPERS
 # =============================================================================
 
-def get_db_connection() -> sqlite3.Connection:
-    """
-    Устанавливает соединение с БД SQLite, используя контекст приложения Flask.
-    Предотвращает ошибки 'database is locked'.
-    
-    Returns:
-        sqlite3.Connection: Объект соединения с базой данных
-    """
+# --- НОВЫЙ КОД: Добавьте эти две функции ---
+def validate_session_id(session_id: str) -> bool:
+    """Checks if the session ID format is valid."""
+    if not session_id or not isinstance(session_id, str):
+        return False
+    return len(session_id) <= MAX_SESSION_ID_LENGTH and bool(SESSION_ID_PATTERN.match(session_id))
+
+def validate_event_type(event_type: str) -> bool:
+    """Checks if the event type format is valid."""
+    if not event_type or not isinstance(event_type, str):
+        return False
+    return len(event_type) <= MAX_EVENT_TYPE_LENGTH
+# --- КОНЕЦ НОВОГО КОДА ---
+
+
+# --- NEW: Centralized Schema Definition ---
+def get_db_schema() -> Dict[str, str]:
+    """Returns a dictionary with CREATE statements for the target schema."""
+    return {
+        'users': '''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                lastname TEXT, firstname TEXT, middlename TEXT, position TEXT,
+                persistent_id TEXT UNIQUE NOT NULL
+            )
+        ''',
+        'fingerprints': '''
+            CREATE TABLE IF NOT EXISTS fingerprints (
+                fingerprint_hash TEXT PRIMARY KEY,
+                user_agent TEXT, platform TEXT, webgl_renderer TEXT,
+                first_seen TEXT NOT NULL, last_seen TEXT NOT NULL
+            )
+        ''',
+        'result_metadata': '''
+            CREATE TABLE IF NOT EXISTS result_metadata (
+                session_id TEXT PRIMARY KEY, user_id INTEGER, fingerprint_hash TEXT,
+                test_type TEXT, score INTEGER, start_time TEXT, end_time TEXT,
+                filename TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(user_id),
+                FOREIGN KEY(fingerprint_hash) REFERENCES fingerprints(fingerprint_hash)
+            )
+        ''',
+        'document_counters': '''
+            CREATE TABLE IF NOT EXISTS document_counters (
+                period TEXT PRIMARY KEY, last_sequence_number INTEGER NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        ''',
+        'proctoring_events': '''
+            CREATE TABLE IF NOT EXISTS proctoring_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL,
+                event_type TEXT NOT NULL, event_timestamp TEXT NOT NULL, details TEXT,
+                persistent_id TEXT, client_ip TEXT, page TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        ''',
+        'certificates': '''
+            CREATE TABLE IF NOT EXISTS certificates (
+                document_number TEXT PRIMARY KEY, user_fullname TEXT NOT NULL,
+                user_position TEXT, test_type TEXT NOT NULL, issue_date TEXT NOT NULL,
+                score_percentage INTEGER NOT NULL, session_id TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        '''
+    }
+
+@contextmanager
+def get_db():
+    """Context manager for database connection."""
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE_PATH)
+        db = g._database = sqlite3.connect(
+            DATABASE_PATH,
+            timeout=10.0,
+            isolation_level='IMMEDIATE'
+        )
         db.row_factory = sqlite3.Row
-    return db
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA foreign_keys = ON") # Enable foreign key constraints
+    try:
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        pass  # Connection closed in teardown
 
 
 @app.teardown_appcontext
-def teardown_db(exception):
-    """Закрывает соединение с БД после завершения запроса."""
-    db = getattr(g, '_database', None)
+def close_db(exception):
+    """Close database connection after request."""
+    db = g.pop('_database', None)
     if db is not None:
         db.close()
 
+def get_db_schema_version(cursor: sqlite3.Cursor) -> int:
+    """Gets the current schema version from PRAGMA."""
+    return cursor.execute("PRAGMA user_version").fetchone()[0]
 
+# --- REVISED: init_db function ---
 def init_db():
-    """
-    Инициализирует таблицы базы данных и создает индексы для оптимизации производительности.
-    """
+    """Initializes the database if it's empty and checks the schema version."""
     with app.app_context():
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        try:
-            # Создание таблиц
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS document_counters (
-                    period TEXT PRIMARY KEY,
-                    last_sequence_number INTEGER NOT NULL
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS proctoring_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    event_timestamp TEXT NOT NULL,
-                    details TEXT
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS certificates (
-                    document_number TEXT PRIMARY KEY,
-                    user_fullname TEXT NOT NULL,
-                    user_position TEXT,
-                    test_type TEXT NOT NULL,
-                    issue_date TEXT NOT NULL,
-                    score_percentage INTEGER NOT NULL,
-                    session_id TEXT NOT NULL
-                )
-            ''')
-            
-            # Создание индексов для оптимизации запросов
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_proctoring_events_session_id 
-                ON proctoring_events(session_id)
-            ''')
-            
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_proctoring_events_event_type 
-                ON proctoring_events(event_type)
-            ''')
-            
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_proctoring_events_timestamp 
-                ON proctoring_events(event_timestamp)
-            ''')
-            
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_certificates_issue_date 
-                ON certificates(issue_date)
-            ''')
-            
-            conn.commit()
-            app.logger.info("База данных успешно инициализирована")
-            
-        except sqlite3.Error as e:
-            app.logger.error(f"Ошибка при инициализации базы данных: {e}")
-            conn.rollback()
-            raise
+        with get_db() as conn:
+            cursor = conn.cursor()
+            current_version = get_db_schema_version(cursor)
 
+            # Scenario 1: Fresh database (version 0)
+            if current_version == 0:
+                logger.info("New database detected. Creating schema from scratch for version %s.", DB_SCHEMA_VERSION)
+                schema = get_db_schema()
+                for table_sql in schema.values():
+                    cursor.execute(table_sql)
+                
+                # Create indexes
+                indexes = [
+                    'CREATE INDEX IF NOT EXISTS idx_events_session ON proctoring_events(session_id)',
+                    'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_persistent_id ON users(persistent_id)',
+                    'CREATE INDEX IF NOT EXISTS idx_metadata_user_id ON result_metadata(user_id)',
+                ]
+                for idx_sql in indexes:
+                    cursor.execute(idx_sql)
 
-@app.cli.command("init-db")
-def init_db_command():
-    """CLI команда для создания таблиц базы данных."""
-    try:
-        init_db()
-        click.echo("База данных успешно инициализирована.")
-    except Exception as e:
-        click.echo(f"Ошибка при инициализации базы данных: {e}")
+                cursor.execute(f"PRAGMA user_version = {DB_SCHEMA_VERSION}")
+                conn.commit()
+                logger.info("Database schema created successfully.")
+
+            # Scenario 2: Existing but outdated database
+            elif current_version < DB_SCHEMA_VERSION:
+                logger.critical(
+                    f"DB schema version is outdated ({current_version})! "
+                    f"Required: V{DB_SCHEMA_VERSION}. "
+                    f"Please run the migration script (e.g., migrate_v2.py)."
+                )
+                # In a real production environment, you might want to stop the app
+                # exit(1)
+            
+            # Scenario 3: Database is up-to-date
+            else:
+                logger.info(f"DB schema check passed. Current version: V{current_version}.")
 
 
 def get_next_document_number() -> str:
     """
-    Генерирует следующий номер документа в формате ГГ/ММ-XXXX.
-    
-    Returns:
-        str: Уникальный номер документа
-        
-    Raises:
-        sqlite3.Error: При ошибке работы с базой данных
+    Generate next document number in format YY/MM-XXXX.
+    FIXED: Uses proper transaction locking to prevent race conditions.
     """
-    try:
-        conn = get_db_connection()
+    with get_db() as conn:
         cursor = conn.cursor()
         
         now = datetime.now()
-        current_year_short = now.strftime("%y")
-        current_month = now.strftime("%m")
-        current_period = f"{current_year_short}/{current_month}"
+        current_period = now.strftime("%y/%m")
         
-        cursor.execute(
-            "SELECT last_sequence_number FROM document_counters WHERE period = ?", 
-            (current_period,)
-        )
-        row = cursor.fetchone()
-        
-        if row:
-            next_sequence_number = row['last_sequence_number'] + 1
+        # Use UPDATE ... RETURNING if SQLite version supports it, otherwise use transaction
+        try:
+            cursor.execute("BEGIN IMMEDIATE")  # Acquire lock immediately
+            
             cursor.execute(
-                "UPDATE document_counters SET last_sequence_number = ? WHERE period = ?", 
-                (next_sequence_number, current_period)
+                "SELECT last_sequence_number FROM document_counters WHERE period = ?",
+                (current_period,)
             )
-        else:
-            next_sequence_number = 1
-            cursor.execute(
-                "INSERT INTO document_counters (period, last_sequence_number) VALUES (?, ?)",
-                (current_period, next_sequence_number)
-            )
-        
-        conn.commit()
-        document_number = f"{current_period}-{next_sequence_number:04d}"
-        app.logger.info(f"Сгенерирован номер документа: {document_number}")
-        return document_number
-        
-    except sqlite3.Error as e:
-        app.logger.error(f"Ошибка при генерации номера документа: {e}")
-        raise
+            row = cursor.fetchone()
+            
+            if row:
+                next_seq = row['last_sequence_number'] + 1
+                cursor.execute(
+                    "UPDATE document_counters SET last_sequence_number = ?, updated_at = ? WHERE period = ?",
+                    (next_seq, now.isoformat(), current_period)
+                )
+            else:
+                next_seq = 1
+                cursor.execute(
+                    "INSERT INTO document_counters (period, last_sequence_number, updated_at) VALUES (?, ?, ?)",
+                    (current_period, next_seq, now.isoformat())
+                )
+            
+            conn.commit()
+            document_number = f"{current_period}-{next_seq:04d}"
+            logger.info(f"Generated document number: {document_number}")
+            return document_number
+            
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error generating document number: {e}")
+            raise
 
 
 # =============================================================================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# HELPER FUNCTIONS
 # =============================================================================
 
 def sanitize_filename(name_part: str) -> str:
-    """
-    Очищает строку для использования в имени файла.
-    Удаляет недопустимые символы и выполняет транслитерацию.
-    
-    Args:
-        name_part: Часть имени для очистки
-        
-    Returns:
-        str: Очищенная строка
-    """
-    if not name_part:
+    """Sanitize string for safe filename usage."""
+    if not name_part or not isinstance(name_part, str):
         return "Unknown"
     
-    # Транслитерация в латиницу
-    name_part = unidecode.unidecode(str(name_part))
-    # Оставляем только буквы, цифры, подчеркивания и дефисы
+    import unidecode
+    name_part = unidecode.unidecode(name_part)
     name_part = "".join(c if c.isalnum() or c in ['_', '-'] else '_' for c in name_part)
     return name_part.strip('_') or "Unknown"
 
 
 def validate_json_data(data: Dict[str, Any], required_fields: List[str]) -> Tuple[bool, str]:
-    """
-    Валидирует JSON данные на наличие обязательных полей.
+    """Validate JSON data for required fields."""
+    if not data or not isinstance(data, dict):
+        return False, "Invalid or missing data"
     
-    Args:
-        data: Данные для валидации
-        required_fields: Список обязательных полей
-        
-    Returns:
-        Tuple[bool, str]: (True, "") если валидация прошла успешно, 
-                         (False, error_message) в противном случае
-    """
-    if not data:
-        return False, "Отсутствуют данные"
-    
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return False, f"Отсутствуют обязательные поля: {', '.join(missing_fields)}"
+    missing = [f for f in required_fields if f not in data]
+    if missing:
+        return False, f"Missing required fields: {', '.join(missing)}"
     
     return True, ""
 
 
-def save_certificate_to_db(document_number: str, user_info: Dict[str, Any], 
-                          test_type: str, score_percentage: int, session_id: str) -> bool:
-    """
-    Сохраняет информацию о сертификате в базу данных.
-    
-    Args:
-        document_number: Номер документа
-        user_info: Информация о пользователе
-        test_type: Тип теста
-        score_percentage: Процент правильных ответов
-        session_id: ID сессии
-        
-    Returns:
-        bool: True если сохранение прошло успешно
-    """
-    try:
-        conn = get_db_connection()
+def save_certificate_to_db(document_number: str, user_info: Dict[str, Any],
+                          test_type: str, score_percentage: int, session_id: str):
+    """Save certificate information to database. Raises exception on error."""
+    with get_db() as conn:
         cursor = conn.cursor()
         
         full_name = " ".join([
-            user_info.get('lastName', ''),
-            user_info.get('firstName', ''),
-            user_info.get('middleName', '')
+            str(user_info.get('lastName', '')),
+            str(user_info.get('firstName', '')),
+            str(user_info.get('middleName', ''))
         ]).strip()
         
         cursor.execute("""
-            INSERT INTO certificates (document_number, user_fullname, user_position, 
+            INSERT INTO certificates (document_number, user_fullname, user_position,
                                     test_type, issue_date, score_percentage, session_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -299,51 +369,244 @@ def save_certificate_to_db(document_number: str, user_info: Dict[str, Any],
             session_id
         ))
         conn.commit()
-        app.logger.info(f"Сертификат {document_number} сохранен в БД для пользователя {full_name}")
-        return True
-        
-    except sqlite3.Error as e:
-        app.logger.error(f"Ошибка при сохранении сертификата в БД: {e}")
-        return False
+        logger.info(f"Certificate {document_number} saved for {full_name}")
 
 
-def load_completed_tests() -> List[Dict[str, Any]]:
-    """
-    Загружает все завершенные тесты из файловой системы.
-    
-    Returns:
-        List[Dict]: Список данных завершенных тестов
-    """
-    completed_tests = []
-    
+def save_result_metadata(session_id: str, data: Dict, filename: str):
+    """NEW: Save result metadata to database for faster querying."""
     try:
-        for filename in os.listdir(RESULTS_DIR):
-            if not filename.endswith('.json'):
-                continue
+        with get_db() as conn:
+            cursor = conn.cursor()
+            user_info = data.get('userInfo', {})
+            test_results = data.get('testResults', {})
+            session_metrics = data.get('sessionMetrics', {})
+            
+            cursor.execute("""
+                INSERT OR REPLACE INTO result_metadata 
+                (session_id, user_lastname, user_firstname, test_type, score, start_time, end_time, filename)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session_id,
+                user_info.get('lastName'),
+                user_info.get('firstName'),
+                data.get('testType'),
+                test_results.get('percentage'),
+                session_metrics.get('startTime'),
+                session_metrics.get('endTime'),
+                filename
+            ))
+            conn.commit()
+    except sqlite3.Error as e:
+        logger.warning(f"Failed to save metadata for {session_id}: {e}")
+
+
+def load_completed_tests(page: int = 1, per_page: int = 20) -> Tuple[List[Dict], int]:
+    """
+    IMPROVED: Load completed tests with pagination using metadata cache.
+    NOTE: This is retained for analytics that need the full JSON data.
+    """
+    try:
+        # Try to use metadata cache first
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) as total FROM result_metadata")
+            total_row = cursor.fetchone()
+            
+            if total_row and total_row['total'] > 0:
+                # Use metadata cache
+                offset = (page - 1) * per_page
+                cursor.execute("""
+                    SELECT filename FROM result_metadata 
+                    ORDER BY start_time DESC 
+                    LIMIT ? OFFSET ?
+                """, (per_page, offset))
                 
+                filenames = [row['filename'] for row in cursor.fetchall()]
+                total = total_row['total']
+                
+                tests = []
+                for filename in filenames:
+                    filepath = os.path.join(RESULTS_DIR, filename)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            tests.append(json.load(f))
+                    except (json.JSONDecodeError, OSError) as e:
+                        logger.warning(f"Failed to load {filename}: {e}")
+                        continue
+                
+                return tests, total
+        
+        # Fallback to file-based approach if cache is empty
+        all_files = sorted(
+            [f for f in os.listdir(RESULTS_DIR) if f.endswith('.json')],
+            key=lambda x: os.path.getmtime(os.path.join(RESULTS_DIR, x)),
+            reverse=True
+        )
+        
+        total = len(all_files)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        page_files = all_files[start_idx:end_idx]
+        
+        tests = []
+        for filename in page_files:
             filepath = os.path.join(RESULTS_DIR, filename)
             try:
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    test_data = json.load(f)
-                    completed_tests.append(test_data)
-            except (json.JSONDecodeError, FileNotFoundError) as e:
-                app.logger.warning(f"Не удалось загрузить файл {filename}: {e}")
+                    tests.append(json.load(f))
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning(f"Failed to load {filename}: {e}")
                 continue
-                
+        
+        return tests, total
+        
     except OSError as e:
-        app.logger.error(f"Ошибка при чтении директории результатов: {e}")
-    
-    return completed_tests
+        logger.error(f"Error reading results directory: {e}")
+        return [], 0
 
 
 # =============================================================================
-# МАРШРУТЫ ДЛЯ СТАТИЧЕСКИХ ФАЙЛОВ
+# MOUSE TRAJECTORY ANALYSIS
+# =============================================================================
+
+def extract_initial_stroke(trajectory: List[List[float]]) -> List[List[float]]:
+    """Extract only the first deliberate movement before a long pause."""
+    if len(trajectory) < 2:
+        return trajectory
+    
+    for i in range(1, len(trajectory)):
+        time_delta = (trajectory[i][2] - trajectory[i-1][2]) / 1000.0
+        if time_delta > PAUSE_THRESHOLD_SEC:
+            return trajectory[:i]
+    
+    return trajectory
+
+
+def compare_mouse_trajectories(traj1: List[List[float]], traj2: List[List[float]]) -> float:
+    """
+    Compare two mouse trajectories using three-factor analysis.
+    Returns similarity percentage (0-100).
+    """
+    stroke1 = extract_initial_stroke(traj1)
+    stroke2 = extract_initial_stroke(traj2)
+
+    if not stroke1 or not stroke2 or len(stroke1) < 10 or len(stroke2) < 10:
+        return 0.0
+
+    points1 = np.array([[p[0], p[1]] for p in stroke1])
+    points2 = np.array([[p[0], p[1]] for p in stroke2])
+
+    # FACTOR 1: Shape similarity (DTW)
+    def get_shape_similarity(p1, p2):
+        def normalize(points):
+            min_coords = points.min(axis=0)
+            max_coords = points.max(axis=0)
+            range_coords = max_coords - min_coords
+            range_coords[range_coords == 0] = 1
+            return 1000 * (points - min_coords) / range_coords
+
+        norm_p1 = normalize(p1)
+        norm_p2 = normalize(p2)
+        distance, _ = fastdtw(norm_p1, norm_p2, dist=euclidean)
+        
+        max_dist = 1000 * math.sqrt(2) * max(len(norm_p1), len(norm_p2))
+        normalized_distance = distance / max_dist if max_dist > 0 else 1.0
+        
+        similarity = (1 - normalized_distance) * 100
+        return max(0, min(100, similarity))
+
+    shape_sim = get_shape_similarity(points1, points2)
+
+    # FACTOR 2: Scale similarity
+    def get_scale_similarity(p1, p2):
+        size1 = p1.max(axis=0) - p1.min(axis=0)
+        size2 = p2.max(axis=0) - p2.min(axis=0)
+        
+        width_diff = abs(size1[0] - size2[0])
+        height_diff = abs(size1[1] - size2[1])
+        
+        width_sim = max(0, 1 - width_diff / 500)
+        height_sim = max(0, 1 - height_diff / 500)
+        
+        return ((width_sim + height_sim) / 2) * 100
+
+    scale_sim = get_scale_similarity(points1, points2)
+
+    # FACTOR 3: Position similarity
+    def get_position_similarity(p1, p2):
+        center1 = p1.mean(axis=0)
+        center2 = p2.mean(axis=0)
+        distance = euclidean(center1, center2)
+        return max(0, 1 - distance / MAX_DISTANCE_THRESHOLD_PX) * 100
+
+    position_sim = get_position_similarity(points1, points2)
+    
+    # Weighted combination
+    weights = {"shape": 0.60, "scale": 0.25, "position": 0.15}
+    
+    final_sim = (
+        shape_sim * weights["shape"] +
+        scale_sim * weights["scale"] +
+        position_sim * weights["position"]
+    )
+    
+    # Increase contrast for high similarities
+    if final_sim > 80:
+        final_sim = 80 + (final_sim - 80) * 1.5
+
+    return max(0, min(100, final_sim))
+
+
+def find_result_file_by_session_id(session_id: str) -> Optional[str]:
+    """IMPROVED: Find result file path by session ID using metadata cache."""
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session ID format: {session_id}")
+        return None
+    
+    try:
+        # Try metadata cache first
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT filename FROM result_metadata WHERE session_id = ?", (session_id,))
+            row = cursor.fetchone()
+            if row and row['filename']:
+                filepath = os.path.join(RESULTS_DIR, row['filename'])
+                return filepath if os.path.exists(filepath) else None
+    except (sqlite3.Error, OSError) as e:
+        logger.error(f"Ошибка поиска файла для сессии {session_id}: {e}")
+    return None
+
+
+# =============================================================================
+# WEBSOCKET NOTIFICATION
+# =============================================================================
+
+def notify_clients_of_update():
+    """Notify all WebSocket clients of data update."""
+    dead_clients = set()
+    for client in clients:
+        try:
+            client.send(json.dumps({"type": "update_needed"}))
+        except Exception:
+            dead_clients.add(client)
+    
+    clients.difference_update(dead_clients)
+
+
+# =============================================================================
+# STATIC ROUTES
 # =============================================================================
 
 @app.route('/')
 def index():
     """Отдает главную страницу с тестом."""
     return render_template('index.html')
+
+
+@app.route('/results')
+def show_results_page():
+    """Отдает HTML-страницу для отображения результатов."""
+    return render_template('display_results.html')
 
 
 @app.route('/questions_data-117.js')
@@ -385,12 +648,6 @@ def serve_FKGroteskNeue():
 # =============================================================================
 # МАРШРУТЫ ДЛЯ HTML СТРАНИЦ
 # =============================================================================
-
-@app.route('/results')
-def show_results_page():
-    """Отдает HTML-страницу для отображения результатов."""
-    return render_template('display_results.html')
-
 
 @app.route('/152test')
 def show_152test_page():
@@ -434,565 +691,699 @@ def show_index2_page():
     return render_template('index2.html')
 
 
+@app.route('/index-start')
+def show_index_start_page():
+    """Отдает стартовую главную страницу."""
+    return render_template('index-start.html')
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
 # =============================================================================
-# API МАРШРУТЫ ДЛЯ РАБОТЫ С РЕЗУЛЬТАТАМИ ТЕСТОВ
+# API ROUTES - TEST RESULTS & DATA (NEW IMPLEMENTATION)
 # =============================================================================
 
 @app.route('/api/save_results', methods=['POST'])
+@limiter.limit("10 per minute")
+@csrf.exempt
 def save_results():
     """
-    Принимает результаты теста в формате JSON, генерирует номер документа при успешной сдаче,
-    и сохраняет данные в файл и базу данных.
-    
-    Returns:
-        JSON response с информацией о сохранении
+    Accepts results, saves to JSON, and atomically updates all related
+    tables in the normalized database.
     """
     try:
         data = request.get_json()
-        user_ip = request.remote_addr
         
-        # Валидация входных данных
-        is_valid, error_message = validate_json_data(data, ['userInfo', 'testResults'])
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на persistentId и fingerprint ---
+        is_valid, error_msg = validate_json_data(
+            data,
+            ['userInfo', 'testResults', 'sessionId', 'persistentId', 'fingerprint']
+        )
         if not is_valid:
-            app.logger.warning(f"Получены невалидные данные от {user_ip}: {error_message}")
-            return jsonify({"status": "error", "message": error_message}), 400
+            logger.warning(f"Invalid data from {request.remote_addr}: {error_msg}")
+            return jsonify({"status": "error", "message": error_msg}), 400
 
-        user_info = data.get('userInfo', {})
-        test_results = data.get('testResults', {})
-        session_id = data.get('sessionId', 'Unknown')
-        
-        # Добавляем метаданные сервера
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на вложенные ключи ---
+        persistent_id = data.get('persistentId', {}).get('cookie')
+        fp_hash = data.get('fingerprint', {}).get('privacySafeHash')
+
+        if not persistent_id or not fp_hash:
+            logger.warning(f"Missing persistentId or fingerprint from {request.remote_addr}")
+            return jsonify({"status": "error", "message": "Missing persistentId cookie or fingerprint hash"}), 400
+
         data['serverReceiveTimestamp'] = datetime.now().isoformat()
-        data['clientIp'] = user_ip
+        data['clientIp'] = request.remote_addr
+
+        # Generate certificate number on passing score
+        score = data['testResults'].get('percentage', 0)
+        official_doc_num = None
+        if score >= PASSING_SCORE_THRESHOLD:
+            official_doc_num = get_next_document_number()
+            data['officialDocumentNumber'] = official_doc_num
         
-        official_document_number = None
-        score_percentage = test_results.get('percentage', 0)
+        # Save JSON file
+        last_name = sanitize_filename(data['userInfo'].get('lastName', 'Unknown'))
+        first_name = sanitize_filename(data['userInfo'].get('firstName', 'User'))
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        doc_part = f"_{official_doc_num.replace('/', '-')}" if official_doc_num else ""
+        filename = f"result_{last_name}_{first_name}{doc_part}_{timestamp}.json"
         
-        # Генерируем официальный номер документа при успешном прохождении
-        if score_percentage >= PASSING_SCORE_THRESHOLD:
-            try:
-                official_document_number = get_next_document_number()
-                data['officialDocumentNumber'] = official_document_number
-                
-                # Сохраняем сертификат в БД
-                save_certificate_to_db(
-                    official_document_number,
-                    user_info,
-                    data.get('testType', 'N/A'),
-                    score_percentage,
-                    session_id
+        with open(os.path.join(RESULTS_DIR, filename), 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Atomically update DB in a single transaction
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            # 1. User (find or create)
+            user_info = data.get('userInfo', {})
+            # persistent_id уже получен выше
+            cursor.execute("SELECT user_id FROM users WHERE persistent_id = ?", (persistent_id,))
+            user_row = cursor.fetchone()
+            if user_row:
+                user_id = user_row['user_id']
+            else:
+                res = cursor.execute(
+                    "INSERT INTO users (lastname, firstname, middlename, position, persistent_id) VALUES (?, ?, ?, ?, ?)",
+                    (user_info.get('lastName'), user_info.get('firstName'), user_info.get('middleName'), user_info.get('position'), persistent_id)
                 )
-                
-            except Exception as e:
-                app.logger.error(f"Ошибка при создании сертификата для сессии {session_id}: {e}")
+                user_id = res.lastrowid
+
+            # 2. Fingerprint (insert or update last seen date)
+            # fp_hash уже получен выше
+            if fp_hash:
+                fp_data = data.get('fingerprint', {}).get('privacySafe', {})
+                cursor.execute("""
+                    INSERT INTO fingerprints (fingerprint_hash, user_agent, platform, webgl_renderer, first_seen, last_seen)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(fingerprint_hash) DO UPDATE SET last_seen = excluded.last_seen;
+                """, (
+                    fp_hash, fp_data.get('userAgent'), fp_data.get('platform'), 
+                    fp_data.get('webGLRenderer'), data['sessionMetrics']['startTime'], data['sessionMetrics']['startTime']
+                ))
+
+            # 3. Result Metadata
+            cursor.execute(
+                "INSERT OR REPLACE INTO result_metadata (session_id, user_id, fingerprint_hash, test_type, score, start_time, end_time, filename) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (data['sessionId'], user_id, fp_hash, data.get('testType'), score, data['sessionMetrics']['startTime'], data['sessionMetrics']['endTime'], filename)
+            )
+            
+            # 4. Certificate (if applicable)
+            if official_doc_num:
+                full_name = f"{user_info.get('lastName', '')} {user_info.get('firstName', '')} {user_info.get('middleName', '')}".strip()
+                cursor.execute(
+                    "INSERT INTO certificates (document_number, user_fullname, user_position, test_type, issue_date, score_percentage, session_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (official_doc_num, full_name, user_info.get('position'), data.get('testType'), datetime.now().isoformat(), score, data['sessionId'])
+                )
+            
+            conn.commit()
+
+        logger.info(f"Results saved: {filename}, session: {data['sessionId']}, score: {score}%")
         
-        # Формируем имя файла
-        last_name = sanitize_filename(user_info.get('lastName', 'Unknown'))
-        first_name = sanitize_filename(user_info.get('firstName', 'User'))
-        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        doc_num_part = f"_{official_document_number.replace('/', '-')}" if official_document_number else ""
-        filename = f"result_{last_name}_{first_name}{doc_num_part}_{timestamp_str}.json"
+        # Invalidate cache
+        cache.delete_memoized(get_results_api)
+        cache.delete_memoized(get_certificates)
         
-        # Сохраняем файл
-        filepath = os.path.join(RESULTS_DIR, filename)
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        notify_clients_of_update()
         
-        app.logger.info(f"Результаты сохранены: {filename}, сессия: {session_id}, балл: {score_percentage}%")
-        
-        response_data = {
-            "status": "success", 
-            "message": "Results saved", 
-            "filename": filename
-        }
-        if official_document_number:
-            response_data["officialDocumentNumber"] = official_document_number
-        
-        return jsonify(response_data), 201
+        response = {"status": "success", "message": "Results saved", "filename": filename}
+        if official_doc_num:
+            response["officialDocumentNumber"] = official_doc_num
+        return jsonify(response), 201
         
     except json.JSONDecodeError:
-        app.logger.warning(f"Получены некорректные JSON данные от {request.remote_addr}")
-        return jsonify({"status": "error", "message": "Invalid JSON data"}), 400
+        logger.warning(f"Invalid JSON from {request.remote_addr}")
+        return jsonify({"status": "error", "message": "Invalid JSON"}), 400
     except OSError as e:
-        app.logger.error(f"Ошибка при сохранении файла: {e}")
+        logger.error(f"File system error: {e}")
         return jsonify({"status": "error", "message": "File system error"}), 500
     except Exception as e:
-        app.logger.error(f"Неожиданная ошибка при сохранении результатов: {e}")
-        app.logger.error(traceback.format_exc())
+        logger.error(f"Unexpected error in save_results: {e}", exc_info=True)
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 
 @app.route('/api/get_results', methods=['GET'])
+# ИЗМЕНЕНИЕ 1: Используем @cache.cached с query_string=True
+@cache.cached(timeout=60, query_string=True)
 def get_results_api():
-    """
-    Возвращает все сохраненные результаты тестов из файловой системы.
-    
-    Returns:
-        JSON список всех результатов тестов, отсортированный по времени (новые первыми)
-    """
+    """Returns paginated results from the DB cache for fast list rendering."""
     try:
-        results_list = load_completed_tests()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        if not (1 <= page <= 1000 and 1 <= per_page <= MAX_RESULTS_PER_PAGE):
+            return jsonify({"status": "error", "message": "Invalid pagination parameters"}), 400
         
-        # Сортируем по времени получения сервером
-        results_list.sort(
-            key=lambda x: x.get('serverReceiveTimestamp', x.get('clientSubmitTimestamp', '')), 
-            reverse=True
-        )
+        offset = (page - 1) * per_page
+        results = []
         
-        app.logger.info(f"Отправлено {len(results_list)} результатов тестов")
-        return jsonify(results_list), 200
-        
+        with get_db() as conn:
+            cursor = conn.cursor()
+            total = cursor.execute("SELECT COUNT(*) FROM result_metadata").fetchone()[0]
+            
+            # CHANGE 1: The query now also fetches the 'details' of the first event
+            query = """
+                SELECT 
+                    rm.session_id, rm.test_type, rm.score, rm.start_time, rm.end_time,
+                    u.lastname, u.firstname,
+                    (SELECT pe.client_ip FROM proctoring_events pe WHERE pe.session_id = rm.session_id ORDER BY pe.event_timestamp ASC LIMIT 1) as client_ip,
+                    (SELECT pe.details FROM proctoring_events pe WHERE pe.session_id = rm.session_id ORDER BY pe.event_timestamp ASC LIMIT 1) as first_event_details
+                FROM result_metadata rm
+                LEFT JOIN users u ON rm.user_id = u.user_id
+                ORDER BY rm.start_time DESC
+                LIMIT ? OFFSET ?
+            """
+            cursor.execute(query, (per_page, offset))
+            
+            for row in cursor.fetchall():
+                # CHANGE 2: Fallback logic to get the IP from 'details' for old records
+                client_ip = row['client_ip']
+                if not client_ip or client_ip == "N/A":
+                    try:
+                        # Parse the details JSON of the first event
+                        details = json.loads(row['first_event_details'] or '{}')
+                        # Get the IP from inside the JSON
+                        client_ip = details.get('ip', "N/A")
+                    except (json.JSONDecodeError, AttributeError):
+                        client_ip = "N/A"
+
+                score = row['score'] if row['score'] is not None else 0
+
+                # --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем полную русскую шкалу оценок ---
+                if score >= 90:
+                    grade_class = "excellent"
+                    grade_text = "Отлично"
+                elif score >= 80:
+                    grade_class = "good"
+                    grade_text = "Хорошо"
+                elif score >= 60:
+                    grade_class = "satisfactory"
+                    grade_text = "Удовлетворительно"
+                else:
+                    grade_class = "poor"
+                    grade_text = "Неудовлетворительно"
+                # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+                results.append({
+                    "sessionId": row['session_id'],
+                    "testType": row['test_type'],
+                    "clientIp": client_ip,
+                    "userInfo": {"lastName": row['lastname'], "firstName": row['firstname']},
+                    "testResults": {
+                        "percentage": score,
+                        "grade": {"class": grade_class, "text": grade_text}
+                    },
+                    "sessionMetrics": {
+                        "startTime": row['start_time'],
+                        "endTime": row['end_time'],
+                        "totalFocusLoss": 0, "totalBlurTime": 0, "printAttempts": 0
+                    }
+                })
+
+        logger.info(f"Returned {len(results)} results (page {page}, total {total}) from DB")
+        return jsonify({"results": results, "page": page, "per_page": per_page, "total": total})
+
     except Exception as e:
-        app.logger.error(f"Ошибка при получении результатов: {e}")
+        logger.error(f"Error in get_results_api: {e}", exc_info=True)
         return jsonify({"status": "error", "message": "Error retrieving results"}), 500
 
 
+@app.route('/api/get_full_result/<session_id>', methods=['GET'])
+def get_full_result_data(session_id: str):
+    """Finds and returns the full JSON file content for detailed analysis."""
+    try:
+        if not validate_session_id(session_id):
+            return jsonify({"status": "error", "message": "Invalid session ID format"}), 400
+
+        filepath = find_result_file_by_session_id(session_id)
+        if not filepath:
+            return jsonify({"status": "error", "message": "Result not found"}), 404
+        
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        return jsonify(data), 200
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error(f"Could not read file for session {session_id}: {e}")
+        return jsonify({"status": "error", "message": "Error reading result file"}), 500
+    except Exception as e:
+        logger.error(f"Error in get_full_result_data: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
 # =============================================================================
-# API МАРШРУТЫ ДЛЯ РАБОТЫ С СОБЫТИЯМИ ПРОКТОРИНГА
+# API ROUTES - PROCTORING EVENTS
 # =============================================================================
 
 @app.route('/api/log_event', methods=['POST'])
+@limiter.limit("60 per minute")
+@csrf.exempt
 def log_event():
     """
-    Принимает и логирует единичное событие прокторинга в базу данных.
-    
-    Returns:
-        JSON response с результатом операции
+    Log a single proctoring event to database.
+    IMPROVED: Better input validation.
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No data"}), 400
+        
         user_ip = request.remote_addr
         
-        # Валидация обязательных полей
-        is_valid, error_message = validate_json_data(data, ['sessionId', 'eventType'])
+        is_valid, error_msg = validate_json_data(data, ['sessionId', 'eventType'])
         if not is_valid:
-            app.logger.warning(f"Получено невалидное событие от {user_ip}: {error_message}")
-            return jsonify({"status": "error", "message": error_message}), 400
+            logger.warning(f"Invalid event from {user_ip}: {error_msg}")
+            return jsonify({"status": "error", "message": error_msg}), 400
         
-        session_id = data.get('sessionId')
-        event_type = data.get('eventType')
+        session_id = data['sessionId']
+        event_type = data['eventType']
+        
+        # Validate inputs
+        if not validate_session_id(session_id):
+            return jsonify({"status": "error", "message": "Invalid session ID"}), 400
+        
+        if not validate_event_type(event_type):
+            return jsonify({"status": "error", "message": "Invalid event type"}), 400
+        
         event_timestamp = data.get('eventTimestamp', datetime.now().isoformat())
         details = data.get('details', {})
         details['ip'] = user_ip
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """INSERT INTO proctoring_events (session_id, event_type, event_timestamp, details) 
-               VALUES (?, ?, ?, ?)""",
-            (session_id, event_type, event_timestamp, json.dumps(details))
-        )
-        conn.commit()
+        # Extract denormalized fields for faster querying
+        persistent_id = details.get('persistentId')
+        page = details.get('page')
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO proctoring_events 
+                (session_id, event_type, event_timestamp, details, persistent_id, client_ip, page)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                session_id,
+                event_type,
+                event_timestamp,
+                json.dumps(details),
+                persistent_id,
+                user_ip,
+                page
+            ))
+            conn.commit()
         
-        app.logger.debug(f"Событие {event_type} записано для сессии {session_id}")
+        logger.debug(f"Event {event_type} logged for session {session_id}")
         return jsonify({"status": "success"}), 200
         
     except json.JSONDecodeError:
-        app.logger.warning(f"Получены некорректные JSON данные события от {request.remote_addr}")
-        return jsonify({"status": "error", "message": "Invalid JSON data"}), 400
+        return jsonify({"status": "error", "message": "Invalid JSON"}), 400
     except sqlite3.Error as e:
-        app.logger.error(f"Ошибка БД при записи события: {e}")
+        logger.error(f"Database error in log_event: {e}")
         return jsonify({"status": "error", "message": "Database error"}), 500
     except Exception as e:
-        app.logger.error(f"Неожиданная ошибка при записи события: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
+        logger.error(f"Unexpected error in log_event: {e}")
+        return jsonify({"status": "error", "message": "Internal error"}), 500
 
 
 @app.route('/api/get_events/<session_id>', methods=['GET'])
 def get_events(session_id: str):
     """
-    Возвращает все события прокторинга для указанной сессии.
-    
-    Args:
-        session_id: Идентификатор сессии
-        
-    Returns:
-        JSON список событий для указанной сессии
+    Return all proctoring events for a session.
+    IMPROVED: Input validation.
     """
     try:
-        if not session_id or not session_id.strip():
+        if not validate_session_id(session_id):
             return jsonify({"status": "error", "message": "Invalid session ID"}), 400
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """SELECT * FROM proctoring_events 
-               WHERE session_id = ? 
-               ORDER BY event_timestamp ASC""",
-            (session_id,)
-        )
-        events = [dict(row) for row in cursor.fetchall()]
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM proctoring_events
+                WHERE session_id = ?
+                ORDER BY event_timestamp ASC
+            """, (session_id,))
+            events = [dict(row) for row in cursor.fetchall()]
         
-        app.logger.info(f"Отправлено {len(events)} событий для сессии {session_id}")
+        logger.info(f"Returned {len(events)} events for session {session_id}")
         return jsonify(events), 200
         
     except sqlite3.Error as e:
-        app.logger.error(f"Ошибка БД при получении событий для сессии {session_id}: {e}")
+        logger.error(f"Database error in get_events: {e}")
         return jsonify({"status": "error", "message": "Database error"}), 500
     except Exception as e:
-        app.logger.error(f"Неожиданная ошибка при получении событий для сессии {session_id}: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
+        logger.error(f"Unexpected error in get_events: {e}")
+        return jsonify({"status": "error", "message": "Internal error"}), 500
 
 
 # =============================================================================
-# API МАРШРУТЫ ДЛЯ РАБОТЫ С СЕРТИФИКАТАМИ
+# API ROUTES - CERTIFICATES
 # =============================================================================
 
 @app.route('/api/get_certificates', methods=['GET'])
+@cache.memoize(timeout=360)
 def get_certificates():
-    """
-    Возвращает реестр всех выданных сертификатов из базы данных.
-    
-    Returns:
-        JSON список всех сертификатов, отсортированный по дате выдачи
-    """
+    """Return registry of all issued certificates."""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM certificates ORDER BY issue_date DESC")
-        certificates = [dict(row) for row in cursor.fetchall()]
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM certificates ORDER BY issue_date DESC")
+            certificates = [dict(row) for row in cursor.fetchall()]
         
-        app.logger.info(f"Отправлено {len(certificates)} сертификатов")
+        logger.info(f"Returned {len(certificates)} certificates")
         return jsonify(certificates), 200
         
     except sqlite3.Error as e:
-        app.logger.error(f"Ошибка БД при получении сертификатов: {e}")
+        logger.error(f"Database error in get_certificates: {e}")
         return jsonify({"status": "error", "message": "Database error"}), 500
     except Exception as e:
-        app.logger.error(f"Неожиданная ошибка при получении сертификатов: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
+        logger.error(f"Unexpected error in get_certificates: {e}")
+        return jsonify({"status": "error", "message": "Internal error"}), 500
 
 
 # =============================================================================
-# ФУНКЦИИ ДЛЯ АНАЛИТИКИ
+# ANALYTICS FUNCTIONS
 # =============================================================================
 
 def get_completed_session_ids() -> set:
-    """
-    Получает ID всех успешно завершенных сессий из JSON-файлов.
-    
-    Returns:
-        set: Множество ID завершенных сессий
-    """
-    completed_session_ids = set()
-    completed_tests = load_completed_tests()
-    
-    for test_data in completed_tests:
-        session_id = test_data.get('sessionId')
-        if session_id and isinstance(session_id, str):
-            completed_session_ids.add(session_id)
-    
-    return completed_session_ids
-
-
-def get_all_started_sessions() -> List[sqlite3.Row]:
-    """
-    Получает информацию о всех начатых сессиях из базы данных.
-    
-    Returns:
-        List[sqlite3.Row]: Список записей о начатых сессиях с метриками нарушений
-    """
+    """Get IDs of all successfully completed sessions."""
+    completed_ids = set()
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT 
-                session_id, 
-                MIN(event_timestamp) as start_time,
-                SUM(CASE WHEN event_type = 'focus_loss' THEN 1 ELSE 0 END) as focus_loss_count,
-                SUM(CASE WHEN event_type = 'screenshot_attempt' THEN 1 ELSE 0 END) as screenshot_count,
-                SUM(CASE WHEN event_type = 'print_attempt' THEN 1 ELSE 0 END) as print_count
-            FROM proctoring_events
-            GROUP BY session_id
-        """)
-        return cursor.fetchall()
-        
-    except sqlite3.Error as e:
-        app.logger.error(f"Ошибка при получении начатых сессий: {e}")
-        return []
-
+        for filename in os.listdir(RESULTS_DIR):
+            if not filename.endswith('.json'):
+                continue
+            
+            filepath = os.path.join(RESULTS_DIR, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    sid = data.get('sessionId')
+                    if sid and isinstance(sid, str):
+                        completed_ids.add(sid)
+            except (json.JSONDecodeError, OSError):
+                continue
+    except OSError as e:
+        logger.error(f"Error reading results directory: {e}")
+    
+    return completed_ids
 
 def get_session_user_info(session_id: str) -> Tuple[Dict[str, Any], str, str]:
     """
-    Получает информацию о пользователе и сессии из событий прокторинга.
-    
-    Args:
-        session_id: ID сессии
-        
-    Returns:
-        Tuple: (user_info, client_ip, session_type)
+    Get user information and session type from proctoring events.
+    Returns: (user_info, client_ip, session_type)
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT details, event_type FROM proctoring_events 
-            WHERE session_id = ? AND (event_type = 'test_started' OR event_type = 'study_started') 
-            LIMIT 1
-        """, (session_id,))
-        start_event_row = cursor.fetchone()
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT details, event_type, client_ip
+                FROM proctoring_events
+                WHERE session_id = ?
+                  AND (event_type = 'test_started' OR event_type = 'study_started')
+                LIMIT 1
+            """, (session_id,))
+            row = cursor.fetchone()
         
         user_info = {}
         client_ip = "N/A"
         session_type = "unknown"
         
-        if start_event_row:
+        if row:
+            client_ip = row['client_ip'] or "N/A"
+            
             try:
-                details_json = json.loads(start_event_row['details'])
-                client_ip = details_json.get('ip', "N/A")
+                details = json.loads(row['details'])
                 
-                if start_event_row['event_type'] == 'test_started':
+                # --- THIS IS THE CRUCIAL FIX ---
+                # If the IP from the dedicated column is missing, fall back to the details JSON
+                if client_ip == "N/A" and 'ip' in details:
+                    client_ip = details['ip']
+                # --- End of fix ---
+
+                if row['event_type'] == 'test_started':
                     session_type = "test"
-                    user_info = details_json.get('userInfo', {"lastName": "N/A"})
-                elif start_event_row['event_type'] == 'study_started':
+                    user_info = details.get('userInfo', {"lastName": "N/A"})
+                elif row['event_type'] == 'study_started':
                     session_type = "study"
-                    temp_user_info = details_json.get('userInfo')
-                    if temp_user_info and temp_user_info.get('lastName'):
-                        user_info = temp_user_info
+                    temp_info = details.get('userInfo')
+                    if temp_info and temp_info.get('lastName'):
+                        user_info = temp_info
                     else:
-                        persistent_id = details_json.get('persistentId', 'N/A')
+                        pid = details.get('persistentId')
                         user_info = {
-                            "lastName": "Учебная сессия",
-                            "firstName": f"ID: {persistent_id[:8]}..." if persistent_id else 'N/A'
+                            "lastName": "Study Session",
+                            "firstName": f"ID: {pid[:8]}..." if pid and pid != 'N/A' else 'N/A'
                         }
-            except (json.JSONDecodeError, AttributeError, KeyError) as e:
-                app.logger.warning(f"Ошибка при парсинге данных сессии {session_id}: {e}")
-                user_info = {"lastName": "Ошибка данных"}
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Error parsing session {session_id} data: {e}")
+                user_info = {"lastName": "Data Error"}
         
         return user_info, client_ip, session_type
         
     except sqlite3.Error as e:
-        app.logger.error(f"Ошибка БД при получении информации о сессии {session_id}: {e}")
-        return {"lastName": "Ошибка БД"}, "N/A", "unknown"
+        logger.error(f"Database error in get_session_user_info: {e}")
+        return {"lastName": "DB Error"}, "N/A", "unknown"
 
 
-def find_related_study_session(test_start_time: str, test_persistent_id: str, 
+def find_related_study_session(test_start_time: str, test_persistent_id: str,
                               test_ip: str, required_study_page: str) -> Optional[str]:
     """
-    Находит связанную учебную сессию для тестовой сессии.
-    
-    Args:
-        test_start_time: Время начала теста
-        test_persistent_id: Постоянный ID пользователя
-        test_ip: IP адрес пользователя
-        required_study_page: Требуемая страница обучения
-        
-    Returns:
-        Optional[str]: ID связанной учебной сессии или None
+    Find related study session for a test session.
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Сначала ищем по persistent ID
-        if test_persistent_id:
-            cursor.execute("""
-                SELECT session_id FROM proctoring_events
-                WHERE event_type = 'study_started' AND event_timestamp < ? 
-                AND json_extract(details, '$.persistentId') = ?
-                AND json_extract(details, '$.page') = ?
-                GROUP BY session_id ORDER BY MIN(event_timestamp) DESC LIMIT 1
-            """, (test_start_time, test_persistent_id, required_study_page))
-            result = cursor.fetchone()
-            if result:
-                return result['session_id']
-        
-        # Если не нашли по ID, ищем по IP в пределах 24 часов
-        if test_ip:
-            cursor.execute("""
-                SELECT session_id FROM proctoring_events
-                WHERE event_type = 'study_started' AND event_timestamp < ? 
-                AND json_extract(details, '$.ip') = ?
-                AND datetime(event_timestamp) > datetime(?, '-{} hours')
-                AND json_extract(details, '$.page') = ?
-                GROUP BY session_id ORDER BY MIN(event_timestamp) DESC LIMIT 1
-            """.format(MAX_STUDY_SESSION_LOOKUP_HOURS), 
-            (test_start_time, test_ip, test_start_time, required_study_page))
-            result = cursor.fetchone()
-            if result:
-                return result['session_id']
-        
-        return None
-        
-    except sqlite3.Error as e:
-        app.logger.error(f"Ошибка при поиске связанной учебной сессии: {e}")
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            # Search by persistent ID first
+            if test_persistent_id:
+                cursor.execute("""
+                    SELECT session_id
+                    FROM proctoring_events
+                    WHERE event_type = 'study_started'
+                      AND event_timestamp < ?
+                      AND persistent_id = ?
+                      AND page = ?
+                    GROUP BY session_id
+                    ORDER BY MIN(event_timestamp) DESC
+                    LIMIT 1
+                """, (test_start_time, test_persistent_id, required_study_page))
+                result = cursor.fetchone()
+                if result:
+                    return result['session_id']
+            
+            # Fallback: search by IP within time window
+            if test_ip:
+                # Calculate time boundary in Python for safety
+                test_time = datetime.fromisoformat(test_start_time.replace('Z', ''))
+                min_time = test_time - timedelta(hours=MAX_STUDY_SESSION_LOOKUP_HOURS)
+                
+                cursor.execute("""
+                    SELECT session_id
+                    FROM proctoring_events
+                    WHERE event_type = 'study_started'
+                      AND event_timestamp < ?
+                      AND event_timestamp > ?
+                      AND client_ip = ?
+                      AND page = ?
+                    GROUP BY session_id
+                    ORDER BY MIN(event_timestamp) DESC
+                    LIMIT 1
+                """, (test_start_time, min_time.isoformat(), test_ip, required_study_page))
+                result = cursor.fetchone()
+                if result:
+                    return result['session_id']
+            
+            return None
+            
+    except (sqlite3.Error, ValueError) as e:
+        logger.error(f"Error in find_related_study_session: {e}")
         return None
 
 
 def calculate_engagement_score(study_session_id: str) -> Tuple[int, int]:
     """
-    Рассчитывает индекс вовлеченности пользователя в учебную сессию.
-    
-    Args:
-        study_session_id: ID учебной сессии
-        
-    Returns:
-        Tuple[int, int]: (engagement_score, study_duration_seconds)
+    Calculate user engagement index for a study session.
+    Returns: (engagement_score, study_duration_seconds)
     """
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        engagement_score = 0
-        study_duration = 0
-        
-        # Вычисляем длительность сессии
-        cursor.execute("""
-            SELECT MIN(event_timestamp), MAX(event_timestamp) 
-            FROM proctoring_events WHERE session_id = ?
-        """, (study_session_id,))
-        times = cursor.fetchone()
-        
-        if times and times[0] and times[1]:
-            try:
-                start = datetime.fromisoformat(times[0].replace('Z', ''))
-                end = datetime.fromisoformat(times[1].replace('Z', ''))
-                study_duration = int((end - start).total_seconds())
-            except ValueError as e:
-                app.logger.warning(f"Ошибка при парсинге времени для сессии {study_session_id}: {e}")
-        
-        # Баллы за время просмотра модулей
-        cursor.execute("""
-            SELECT details FROM proctoring_events 
-            WHERE session_id = ? AND event_type = 'module_view_time'
-        """, (study_session_id,))
-        module_events = cursor.fetchall()
-        
-        total_module_view_time = 0
-        for row in module_events:
-            try:
-                details = json.loads(row['details'])
-                total_module_view_time += details.get('duration', 0)
-            except (json.JSONDecodeError, KeyError):
-                continue
-        
-        engagement_score += int(total_module_view_time / 60)  # 1 балл за минуту
-        
-        # Баллы за прокрутку
-        cursor.execute("""
-            SELECT details FROM proctoring_events 
-            WHERE session_id = ? AND event_type = 'scroll_depth_milestone'
-        """, (study_session_id,))
-        scroll_events = cursor.fetchall()
-        
-        max_depth = 0
-        for row in scroll_events:
-            try:
-                details = json.loads(row['details'])
-                depth_str = details.get('depth', '0%').replace('%', '')
-                max_depth = max(max_depth, int(depth_str))
-            except (json.JSONDecodeError, ValueError, KeyError):
-                continue
-        
-        if max_depth >= 95:
-            engagement_score += 10
-        elif max_depth >= 50:
-            engagement_score += 5
-        
-        # Баллы за ответы на вопросы самоконтроля
-        cursor.execute("""
-            SELECT COUNT(*) FROM proctoring_events 
-            WHERE session_id = ? AND event_type = 'self_check_answered'
-        """, (study_session_id,))
-        self_check_count = cursor.fetchone()[0]
-        engagement_score += self_check_count * 2
-        
-        return engagement_score, study_duration
-        
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            engagement = 0
+            duration = 0
+            
+            # Calculate session duration
+            cursor.execute("""
+                SELECT MIN(event_timestamp), MAX(event_timestamp)
+                FROM proctoring_events
+                WHERE session_id = ?
+            """, (study_session_id,))
+            times = cursor.fetchone()
+            
+            if times and times[0] and times[1]:
+                try:
+                    start = datetime.fromisoformat(times[0].replace('Z', ''))
+                    end = datetime.fromisoformat(times[1].replace('Z', ''))
+                    duration = int((end - start).total_seconds())
+                except ValueError as e:
+                    logger.warning(f"Time parse error for session {study_session_id}: {e}")
+            
+            # Points for module view time
+            cursor.execute("""
+                SELECT details FROM proctoring_events
+                WHERE session_id = ? AND event_type = 'module_view_time'
+            """, (study_session_id,))
+            
+            total_view_time = 0
+            for row in cursor.fetchall():
+                try:
+                    details = json.loads(row['details'])
+                    total_view_time += details.get('duration', 0)
+                except (json.JSONDecodeError, KeyError):
+                    continue
+            
+            engagement += int(total_view_time / 60)  # 1 point per minute
+            
+            # Points for scroll depth
+            cursor.execute("""
+                SELECT details FROM proctoring_events
+                WHERE session_id = ? AND event_type = 'scroll_depth_milestone'
+            """, (study_session_id,))
+            
+            max_depth = 0
+            for row in cursor.fetchall():
+                try:
+                    details = json.loads(row['details'])
+                    depth_str = details.get('depth', '0%').replace('%', '')
+                    max_depth = max(max_depth, int(depth_str))
+                except (json.JSONDecodeError, ValueError, KeyError):
+                    continue
+            
+            if max_depth >= 95:
+                engagement += 10
+            elif max_depth >= 50:
+                engagement += 5
+            
+            # Points for self-check answers
+            cursor.execute("""
+                SELECT COUNT(*) FROM proctoring_events
+                WHERE session_id = ? AND event_type = 'self_check_answered'
+            """, (study_session_id,))
+            self_check_count = cursor.fetchone()[0]
+            engagement += self_check_count * 2
+            
+            return engagement, duration
+            
     except sqlite3.Error as e:
-        app.logger.error(f"Ошибка при расчете индекса вовлеченности для сессии {study_session_id}: {e}")
+        logger.error(f"Error in calculate_engagement_score: {e}")
         return 0, 0
 
 
 # =============================================================================
-# API МАРШРУТЫ ДЛЯ АНАЛИТИКИ
+# API ROUTES - ANALYTICS
 # =============================================================================
 
 @app.route('/api/get_abandoned_sessions', methods=['GET'])
+@cache.memoize(timeout=60)
 def get_abandoned_sessions():
     """
-    Находит сессии, которые были начаты, но не завершены успешно.
-    
-    Returns:
-        JSON список прерванных сессий с информацией о пользователях и нарушениях
+    Find sessions that were started but not completed successfully.
+    (Optimized version)
     """
     try:
-        completed_session_ids = get_completed_session_ids()
-        all_started_sessions = get_all_started_sessions()
+        # Step 1: Get all completed session IDs from the fast file-based check.
+        completed_ids = get_completed_session_ids()
         
-        abandoned_sessions = []
+        # Step 2: Use SQL to find all unique session IDs from the events table.
+        # This is much faster than fetching all event data.
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT session_id FROM proctoring_events")
+            all_event_sids = {row['session_id'] for row in cursor.fetchall()}
+
+        # Step 3: Find the difference to identify abandoned sessions.
+        abandoned_sids = list(all_event_sids - completed_ids)
         
-        for session in all_started_sessions:
-            session_id = session['session_id']
-            
-            # Если сессия была начата, но не завершена
-            if session_id not in completed_session_ids:
-                user_info, client_ip, session_type = get_session_user_info(session_id)
-                
-                abandoned_sessions.append({
-                    "sessionId": session_id,
-                    "sessionType": session_type,
-                    "startTime": session['start_time'],
-                    "userInfo": user_info,
-                    "clientIp": client_ip,
-                    "violationCounts": {
-                        "focusLoss": session['focus_loss_count'],
-                        "screenshots": session['screenshot_count'],
-                        "prints": session['print_count']
-                    }
-                })
+        if not abandoned_sids:
+            return jsonify([]), 200
+
+        # Step 4: Fetch details ONLY for the abandoned sessions.
+        # Using a parameterized query avoids SQL injection and is efficient.
+        placeholders = ','.join('?' for _ in abandoned_sids)
+        query = f"""
+            SELECT
+                session_id,
+                MIN(event_timestamp) as start_time,
+                SUM(CASE WHEN event_type = 'focus_loss' THEN 1 ELSE 0 END) as focus_loss_count,
+                SUM(CASE WHEN event_type = 'screenshot_attempt' THEN 1 ELSE 0 END) as screenshot_count,
+                SUM(CASE WHEN event_type = 'print_attempt' THEN 1 ELSE 0 END) as print_count
+            FROM proctoring_events
+            WHERE session_id IN ({placeholders})
+            GROUP BY session_id
+        """
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, abandoned_sids)
+            abandoned_sessions_details = cursor.fetchall()
+
+        # Step 5: Enrich with user info and format the final response.
+        abandoned_results = []
+        for session in abandoned_sessions_details:
+            sid = session['session_id']
+            user_info, client_ip, session_type = get_session_user_info(sid)
+            abandoned_results.append({
+                "sessionId": sid,
+                "sessionType": session_type,
+                "startTime": session['start_time'],
+                "userInfo": user_info,
+                "clientIp": client_ip,
+                "violationCounts": {
+                    "focusLoss": session['focus_loss_count'],
+                    "screenshots": session['screenshot_count'],
+                    "prints": session['print_count']
+                }
+            })
         
-        # Сортируем по времени начала (новые первыми)
-        abandoned_sessions.sort(key=lambda x: x['startTime'], reverse=True)
+        abandoned_results.sort(key=lambda x: x['startTime'], reverse=True)
         
-        app.logger.info(f"Найдено {len(abandoned_sessions)} прерванных сессий")
-        return jsonify(abandoned_sessions), 200
+        logger.info(f"Found {len(abandoned_results)} abandoned sessions (Optimized)")
+        return jsonify(abandoned_results), 200
 
     except Exception as e:
-        app.logger.error(f"Ошибка при получении прерванных сессий: {e}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({"status": "error", "message": "Error analyzing abandoned sessions"}), 500
+        logger.error(f"Error in get_abandoned_sessions: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "message": "Error analyzing sessions"}), 500
 
 
 @app.route('/api/get_behavior_analysis', methods=['GET'])
 def get_behavior_analysis():
     """
-    Выполняет поведенческий анализ для выявления подозрительных паттернов сдачи тестов.
-    Анализирует связь между учебными сессиями и результатами тестов.
-    
-    Returns:
-        JSON список подозрительных сессий с детальным анализом
+    Perform behavioral analysis to detect suspicious test-taking patterns.
     """
     try:
-        completed_tests = load_completed_tests()
-        suspicious_sessions = []
+        # Load all completed tests (not paginated for analysis)
+        all_tests, _ = load_completed_tests(page=1, per_page=10000)
+        suspicious = []
 
-        for test in completed_tests:
-            test_start_time = test.get('sessionMetrics', {}).get('startTime')
-            test_persistent_id = test.get('persistentId', {}).get('cookie')
+        for test in all_tests:
+            test_start = test.get('sessionMetrics', {}).get('startTime')
+            test_pid = test.get('persistentId', {}).get('cookie')
             test_ip = test.get('clientIp')
             test_type = test.get('testType', 'default')
             
-            # Получаем пороги для текущего типа теста
             thresholds = BEHAVIOR_THRESHOLDS.get(test_type, BEHAVIOR_THRESHOLDS['default'])
-            required_study_page = TEST_TO_STUDY_PAGE_MAP.get(test_type)
+            required_page = TEST_TO_STUDY_PAGE_MAP.get(test_type)
             
-            # Проверяем наличие необходимых данных
-            if not all([test_start_time, required_study_page, (test_persistent_id or test_ip)]):
+            if not all([test_start, required_page, (test_pid or test_ip)]):
                 continue
             
-            # Ищем связанную учебную сессию
-            study_session_id = find_related_study_session(
-                test_start_time, test_persistent_id, test_ip, required_study_page
-            )
+            study_sid = find_related_study_session(test_start, test_pid, test_ip, required_page)
             
-            engagement_score = 0
+            engagement = 0
             study_duration = 0
             
-            if study_session_id:
-                engagement_score, study_duration = calculate_engagement_score(study_session_id)
+            if study_sid:
+                engagement, study_duration = calculate_engagement_score(study_sid)
             
-            # Вычисляем метрики теста
             try:
                 test_duration = (
                     datetime.fromisoformat(test['sessionMetrics']['endTime'].replace('Z', '')) -
@@ -1000,60 +1391,177 @@ def get_behavior_analysis():
                 ).total_seconds()
                 test_score = test['testResults']['percentage']
             except (KeyError, ValueError) as e:
-                app.logger.warning(f"Ошибка при обработке метрик теста: {e}")
+                logger.warning(f"Error processing test metrics: {e}")
                 continue
             
-            # Проверяем подозрительные паттерны
             if (test_score >= thresholds['min_score'] and
                 test_duration < thresholds['max_test_duration_sec'] and
-                engagement_score < thresholds['min_engagement_score']):
+                engagement < thresholds['min_engagement_score']):
                 
                 reason = (
                     f"Высокий балл ({test_score}%) при быстром прохождении "
-                    f"({int(test_duration)} сек) и низком индексе вовлеченности в обучение "
-                    f"(Очки: {engagement_score})."
+                    f"({int(test_duration)}с) и низкой вовлеченности в обучение "
+                    f"(Оценка: {engagement})."
                 )
                 
-                suspicious_sessions.append({
+                suspicious.append({
                     "userInfo": test.get('userInfo'),
-                    "testResult": {
-                        "score": test_score, 
-                        "duration": int(test_duration)
-                    },
-                    "studyInfo": {
-                        "duration": study_duration,
-                        "engagementScore": engagement_score
-                    },
+                    "testResult": {"score": test_score, "duration": int(test_duration)},
+                    "studyInfo": {"duration": study_duration, "engagementScore": engagement},
                     "reason": reason,
                     "sessionId": test.get('sessionId')
                 })
 
-        app.logger.info(f"Найдено {len(suspicious_sessions)} подозрительных сессий")
-        return jsonify(suspicious_sessions), 200
+        logger.info(f"Found {len(suspicious)} suspicious sessions")
+        return jsonify(suspicious), 200
 
     except Exception as e:
-        app.logger.error(f"Ошибка при поведенческом анализе: {e}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({"status": "error", "message": "Error in behavioral analysis"}), 500
+        logger.error(f"Error in get_behavior_analysis: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "message": "Error in analysis"}), 500
+
+
+@app.route('/api/analyze_mouse_from_files', methods=['POST'])
+@limiter.limit("5 per minute")
+def analyze_mouse_from_files():
+    """
+    Analyze mouse trajectory similarity using DTW.
+    Accepts list of session IDs, finds corresponding files, performs analysis.
+    """
+    try:
+        data = request.get_json()
+        session_ids = data.get('session_ids')
+
+        if not session_ids or len(session_ids) < 2:
+            return jsonify({"error": "Need at least 2 sessions for comparison"}), 400
+
+        # Extract trajectories from files
+        trajectories = {}
+        for sid in session_ids:
+            filepath = find_result_file_by_session_id(sid)
+            if not filepath:
+                logger.warning(f"File not found for session {sid}")
+                continue
+
+            with open(filepath, 'r', encoding='utf-8') as f:
+                result_data = json.load(f)
+            
+            per_question = result_data.get('behavioralMetrics', {}).get('perQuestion', [])
+            trajectories[sid] = {}
+            for i, q_data in enumerate(per_question):
+                movements = q_data.get('mouseMovements')
+                if movements:
+                    trajectories[sid][i] = movements
+        
+        # Compare trajectories pairwise
+        results = {}
+        sid_list = list(session_ids)
+        
+        for i in range(len(sid_list)):
+            for j in range(i + 1, len(sid_list)):
+                s1, s2 = sid_list[i], sid_list[j]
+                pair_key = f"{s1}_vs_{s2}"
+                results[pair_key] = {}
+                
+                common_qs = set(trajectories.get(s1, {}).keys()) & set(trajectories.get(s2, {}).keys())
+                
+                for q_idx in common_qs:
+                    t1 = trajectories[s1][q_idx]
+                    t2 = trajectories[s2][q_idx]
+                    
+                    similarity = compare_mouse_trajectories(t1, t2)
+                    results[pair_key][q_idx] = round(similarity, 1)
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        logger.error(f"Error in analyze_mouse_from_files: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 
 # =============================================================================
-# ЗАПУСК ПРИЛОЖЕНИЯ
+# WEBSOCKET
+# =============================================================================
+
+@sock.route('/ws')
+def ws_handler(ws):
+    """Handle WebSocket connections for real-time updates."""
+    clients.add(ws)
+    logger.info(f"WebSocket client connected. Total: {len(clients)}")
+    
+    try:
+        while True:
+            data = ws.receive(timeout=60)
+            if data is None:
+                break
+    except Exception:
+        pass
+    finally:
+        clients.discard(ws)
+        logger.info(f"WebSocket client disconnected. Total: {len(clients)}")
+
+
+# =============================================================================
+# CSRF TOKEN INJECTION
+# =============================================================================
+
+@app.after_request
+def inject_csrf_token(response):
+    """
+    Inject CSRF token into cookie for JavaScript access.
+    IMPROVED: More secure cookie settings.
+    """
+    if request.endpoint not in ['static', None]:
+        response.set_cookie(
+            'csrf_token',
+            generate_csrf(),
+            secure=True,  # Always use secure in production
+            httponly=False,
+            samesite='Strict',
+            max_age=3600  # NEW: 1 hour expiration
+        )
+    return response
+
+
+# =============================================================================
+# ERROR HANDLERS
+# =============================================================================
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file upload size exceeded."""
+    return jsonify({"status": "error", "message": "File too large"}), 413
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Handle rate limit exceeded."""
+    return jsonify({"status": "error", "message": "Rate limit exceeded"}), 429
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle internal server errors."""
+    logger.error(f"Internal error: {error}")
+    return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
+# =============================================================================
+# APPLICATION STARTUP
 # =============================================================================
 
 if __name__ == '__main__':
-    # Инициализация базы данных при запуске
     try:
         init_db()
     except Exception as e:
-        print(f"Ошибка при инициализации базы данных: {e}")
+        logger.error(f"Database initialization failed: {e}")
         exit(1)
     
-    # Проверка наличия SSL сертификатов
     if os.path.exists(SSL_CERT_PATH) and os.path.exists(SSL_KEY_PATH):
-        print("--- Запуск в режиме HTTPS ---")
+        logger.info("Starting in HTTPS mode")
         ssl_context = (SSL_CERT_PATH, SSL_KEY_PATH)
-        app.run(host='0.0.0.0', port=5000, debug=True, ssl_context=ssl_context)
+        app.run(host='0.0.0.0', port=5000, debug=False, ssl_context=ssl_context)
     else:
-        print("--- Файлы сертификата не найдены. Запуск в обычном режиме HTTP ---")
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        logger.warning("SSL certificates not found. Starting in HTTP mode")
+        app.run(host='0.0.0.0', port=5000, debug=False)

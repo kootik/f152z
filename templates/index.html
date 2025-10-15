@@ -13,11 +13,10 @@
             --color-text-secondary: #6c757d;
             --color-primary: #0d6efd;
             --color-primary-hover: #0b5ed7;
-            --color-warning: #ffc107;
-            --color-warning-bg: #fff8e1;
-            --color-warning-border: #ffecb3;
             --color-border: #dee2e6;
-            --color-shadow: rgba(0, 0, 0, 0.075);
+            --color-input-border: #ced4da;
+            --color-input-focus-border: #86b7fe;
+            --color-input-focus-shadow: rgba(13, 110, 253, 0.25);
 
             /* Typography */
             --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -29,263 +28,247 @@
             --space-16: 16px;
             --space-24: 24px;
             --space-32: 32px;
+            --space-64: 64px;
 
-            /* Border Radius */
-            --radius-md: 8px;
-            --radius-lg: 12px;
+            /* Borders */
+            --border-radius: 8px;
+        }
 
-            /* Shadows */
-            --shadow-md: 0 4px 6px -1px var(--color-shadow);
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
-            margin: 0;
             font-family: var(--font-family-base);
-            font-size: var(--font-size-base);
-            line-height: var(--line-height-base);
-            color: var(--color-text);
+            margin: 0;
             background-color: var(--color-background);
-            -webkit-font-smoothing: antialiased;
+            color: var(--color-text);
+            line-height: var(--line-height-base);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 var(--space-16);
         }
 
         .header {
-            background-color: var(--color-primary);
-            color: white;
-            padding: var(--space-24) 0;
-            text-align: center;
-            box-shadow: 0 2px 4px var(--color-shadow);
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 2.25rem;
-            font-weight: 600;
+            background-color: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-16) 0;
         }
         
-        .main-container {
-            max-width: 960px;
-            margin: var(--space-32) auto;
-            padding: 0 var(--space-16);
-            display: grid;
-            gap: var(--space-32);
-        }
-
-        .card {
-            background-color: var(--color-surface);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--color-border);
-            box-shadow: var(--shadow-md);
-            overflow: hidden;
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        .header .container {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .card__header {
-            padding: var(--space-16) var(--space-24);
-            border-bottom: 1px solid var(--color-border);
-            background-color: rgba(0,0,0,0.03);
-        }
-
-        .card__header h2 {
+        .header__title {
+            font-size: 1.75rem;
+            font-weight: 600;
             margin: 0;
-            font-size: 1.5rem;
+        }
+
+        .header__logo {
+            font-weight: 700;
             color: var(--color-primary);
         }
 
-        .card__body {
-            padding: var(--space-24);
+        .main {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-        }
-
-        .card__body p {
-            margin: 0 0 var(--space-24) 0;
-            color: var(--color-text-secondary);
-            flex-grow: 1;
-        }
-
-        .link-buttons {
-            display: flex;
-            gap: var(--space-16);
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
             justify-content: center;
-            padding: 10px 20px;
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            font-weight: 500;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            border: 1px solid transparent;
+            align-items: center;
             text-align: center;
+            padding: var(--space-64) 0;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-32);
+            max-width: 600px;
+        }
+        
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            font-size: 1.1rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
         }
 
         .btn--primary {
             background-color: var(--color-primary);
             color: white;
-            border-color: var(--color-primary);
         }
-
         .btn--primary:hover {
             background-color: var(--color-primary-hover);
-            border-color: var(--color-primary-hover);
         }
-        
-        .btn--secondary {
-             background-color: #6c757d;
-             color: white;
-             border-color: #6c757d;
-        }
-        
-        .btn--secondary:hover {
-            background-color: #5a6268;
-            border-color: #545b62;
-        }
-        
-        .btn--success {
-            background-color: #198754;
-            color: white;
-            border-color: #198754;
-        }
-        
-        .btn--success:hover {
-            background-color: #157347;
-            border-color: #146c43;
-        }
-        
-        .proctoring-warning {
-            grid-column: 1 / -1; 
-            background-color: var(--color-warning-bg);
-            border: 1px solid var(--color-warning-border);
-            border-radius: var(--radius-lg);
-            padding: var(--space-24);
-        }
-        
-        .proctoring-warning h3 {
-            margin-top: 0;
-            color: #664d03; 
-            font-size: 1.25rem;
-        }
-        
-        .proctoring-warning p, .proctoring-warning li {
-             color: #664d03;
-             font-size: 0.95rem;
+        .btn:active {
+            transform: translateY(1px);
         }
 
-        .proctoring-warning ul {
-            padding-left: 20px;
-            margin-top: var(--space-8);
-            margin-bottom: var(--space-16);
+        .user-form {
+            background-color: var(--color-surface);
+            padding: var(--space-32);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            max-width: 500px;
+            width: 100%;
+            text-align: left;
+            margin-top: var(--space-32);
         }
 
-        .proctoring-warning li {
-           margin-bottom: var(--space-8);
+        .form-group {
+            margin-bottom: var(--space-24);
         }
 
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: var(--space-8);
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-input-border);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: #fff;
+        }
+
+        .form-select {
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 16px 12px;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--color-input-focus-border);
+            box-shadow: 0 0 0 4px var(--color-input-focus-shadow);
+        }
+        
         .footer {
             text-align: center;
-            padding: var(--space-24);
-            margin-top: var(--space-32);
-            background-color: #e9ecef;
+            padding: var(--space-24) 0;
+            border-top: 1px solid var(--color-border);
             color: var(--color-text-secondary);
-            font-size: 0.9em;
+            margin-top: auto;
         }
-        
-        @media (min-width: 768px) {
-            .main-container {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        
-        @media (max-width: 767px) {
-             .link-buttons {
-                flex-direction: column;
-            }
-            .btn {
-                width: 100%;
-                box-sizing: border-box;
-            }
-        }
-
     </style>
 </head>
 <body>
-
     <header class="header">
-        <h1>Учебный портал по безопасности</h1>
+        <div class="container">
+            <h1 class="header__title">Учебный <span class="header__logo">Портал</span></h1>
+        </div>
     </header>
 
-    <main class="main-container">
-        <div class="card">
-            <div class="card__header">
-                <h2>ФЗ-152 "О персональных данных"</h2>
-            </div>
-            <div class="card__body">
-                <p>Материалы и тесты для изучения требований Федерального закона №152-ФЗ и связанных нормативных актов.</p>
-                <div class="link-buttons">
-                    <a href="/152info" class="btn btn--secondary">Вводная информация</a>
-                    <a href="/study" class="btn btn--primary">Пройти обучение</a>
-                    <a href="/index2" class="btn btn--success">Пройти тестирование</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card__header">
-                <h2>Основы информационной безопасности</h2>
-            </div>
-            <div class="card__body">
-                <p>Общий курс по ключевым принципам и правилам обеспечения ИБ на рабочем месте в соответствии с Приказом ФСТЭК № 117.</p>
-                <div class="link-buttons">
-                    <a href="/117infographic" class="btn btn--secondary">Инфографика</a>
-                    <a href="/117study" class="btn btn--primary">Пройти обучение</a>
-                    <a href="/117test" class="btn btn--success">Пройти тестирование</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="proctoring-warning">
-            <h3>Особые требования к прохождению аттестации</h3>
-            <p>
-                Данная аттестация является обязательной процедурой для всех государственных гражданских служащих и подтверждает вашу готовность к работе с информацией ограниченного доступа, циркулирующей в государственных информационных системах (ГИС).
-            </p>
-            <p>
-                <strong>Правовым основанием</strong> для проведения данных мероприятий служат Требования, утвержденные Приказом <br> ФСТЭК России № 117. Указанный нормативный акт устанавливает <strong>обязанность работников</strong>, являющихся пользователями информационных систем, <strong>участвовать в мероприятиях по защите информации</strong> (п. 22), а на оператора (работодателя) возлагает обязанность по организации <strong>комплексного обучения и периодического контроля знаний</strong> персонала (п. 56, 57). Таким образом, прохождение настоящего обучения и последующей аттестации является необходимым условием для допуска к работе в ГИС и осуществляется во исполнение вышеуказанных нормативных предписаний.
-            </p>
-            <p>
-                Как государственный служащий, вы несете персональную ответственность, в том числе юридическую, за сохранность и правомерное использование служебной информации. Недостаточный уровень знаний является прямым риском для безопасности государственных данных.
-            </p>
-            <p>
-                В целях обеспечения объективности и легитимности результатов, процесс аттестации проходит под строгим цифровым контролем. Система производит непрерывный мониторинг и протоколирование следующих действий:
-            </p>
-            <ul>
-                <li><strong>Поведенческий анализ:</strong> Фиксируется динамика работы с клавиатурой и мышью для выявления аномалий. Время обдумывания ответа, и его изменение.</li>
-                <li><strong>Контроль рабочей области:</strong> Система регистрирует переключение на другие окна, вкладки или приложения.</li>
-                <li><strong>Уникальность сессии:</strong> Каждый запуск теста записывается и связывается с вашим профилем исключая возможность анонимной или повторной сдачи без специального разрешения.</li>
-            </ul>
-            <p>
-                Все зафиксированные данные анализируются. Попытки обмана системы, использования подсказок или привлечения третьих лиц будут расценены как грубое нарушение служебной дисциплины. Собранные материалы могут стать основанием для проведения служебной проверки в соответствии с ФЗ-79 «О государственной гражданской службе РФ». По результатам атестации автоматически формируются заключение о результатах прохождения.
-            </p>
-        </div>
+    <main class="container">
+        <h2 class="page-title">Аттестация по требованиям безопасности информации</h2>
+        <p class="page-subtitle">Подтвердите свою готовность к работе с информацией ограниченного доступа, циркулирующей в государственных информационных системах (ГИС).</p>
         
-    </main>
+        <form id="user-info-form" class="user-form">
+            <div class="form-group">
+                <label for="lastName" class="form-label">Фамилия *</label>
+                <input type="text" id="lastName" class="form-input" required placeholder="Введите фамилию">
+            </div>
+            <div class="form-group">
+                <label for="firstName" class="form-label">Имя *</label>
+                <input type="text" id="firstName" class="form-input" required placeholder="Введите имя">
+            </div>
+             <div class="form-group">
+                <label for="middleName" class="form-label">Отчество</label>
+                <input type="text" id="middleName" class="form-input" placeholder="Введите отчество">
+            </div>
+            <div class="form-group">
+                <label for="position" class="form-label">Должность *</label>
+                <select id="position" name="position" class="form-select" required>
+                    <option value="">Выберите должность</option>
+                    <option value="Министр природных ресурсов">Министр природных ресурсов</option>
+                    <option value="Первый заместитель министра природных ресурсов">Первый заместитель министра природных ресурсов</option>
+                    <option value="Заместитель министра природных ресурсов">Заместитель министра природных ресурсов</option>
+                    <option value="Начальник управления">Начальник управления</option>
+                    <option value="Заместитель начальника управления, начальник отдела в управлении">Заместитель начальника управления, начальник отдела в управлении</option>
+                    <option value="Начальник отдела">Начальник отдела</option>
+                    <option value="Начальник отдела в управлении">Начальник отдела в управлении</option>
+                    <option value="Заместитель начальника отдела">Заместитель начальника отдела</option>
+                    <option value="Заместитель начальника отдела в управлении">Заместитель начальника отдела в управлении</option>
+                    <option value="Главный консультант">Главный консультант</option>
+                    <option value="Ведущий консультант">Ведущий консультант</option>
+                    <option value="Консультант">Консультант</option>
+                    <option value="Главный государственный инспектор">Главный государственный инспектор</option>
+                    <option value="Ведущий специалист 1 разряда">Ведущий специалист 1 разряда</option>
+                    <option value="Ведущий специалист 2 разряда">Ведущий специалист 2 разряда</option>
+                    <option value="Помощник министра">Помощник министра</option>
+                    <option value="ГБУ">ГБУ</option>
+                </select>
+                 </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn--primary" style="width: 100%;">Начать обучение</button>
+            </div>
+        </form>
+        </main>
 
     <footer class="footer">
          <p>&copy; 2025 Отдел информационно технического обеспечения и защиты информации</p>
     </footer>
 
-</body>
-</html>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('user-info-form');
 
+            const normalizeName = (str) => {
+                if (!str) return '';
+                return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+            };
+
+            if (form) {
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+
+                    const userInfo = {
+                        lastName: normalizeName(document.getElementById('lastName').value.trim()),
+                        firstName: normalizeName(document.getElementById('firstName').value.trim()),
+                        middleName: normalizeName(document.getElementById('middleName').value.trim()), 
+                        position: document.getElementById('position').value.trim()
+                    };
+
+                    try {
+                        localStorage.setItem('lastUserInfo', JSON.stringify(userInfo));
+                    } catch (e) {
+                        console.error("Could not save user info to localStorage:", e);
+                        alert("Не удалось сохранить данные. Возможно, в вашем браузере отключено хранилище.");
+                        return;
+                    }
+
+                    window.location.href = 'index-start';
+                });
+            }
+        });
+    </script>
+    </body>
+</html>

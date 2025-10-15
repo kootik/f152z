@@ -1,6 +1,13 @@
 click
 Flask
 Flask-Cors
+Flask-Sock
+Flask-WTF
+Flask-Caching
+Flask-Limiter
 gunicorn
 unidecode
 Werkzeug
+numpy
+scipy
+fastdtw

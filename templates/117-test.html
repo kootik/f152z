@@ -1079,6 +1079,14 @@
 
             /* Стили для печати отчета об ошибках (printErrorReportBtn) */
             @media print {
+                /* Директива для управления параметрами страницы при печати */
+                @page {
+                    /* Устанавливаем размер бумаги А4 */
+                    size: A4;
+                    /* Убираем стандартные колонтитулы и поля браузера */
+                    margin: 0;
+                }
+                /* Скрываем все, кроме специального блока для печати отчета */
                 body.printing-specific-report > *:not(#errorReportPrintArea):not(#pdf-official-blank-container.printing-official-blank) {
                     display: none !important;
                 }
@@ -1627,8 +1635,8 @@
                                 <input type="text" id="middleName" class="form-control">
                             </div>
                             <div class="form-group">
-                                <label for="position" class="form-label">Должность</label>
-                                <input type="text" id="position" class="form-control">
+                                <label for="position" class="form-label">Должность *</label>
+                                <input type="text" id="position" class="form-control" required>
                             </div>
                             <button type="submit" class="btn btn--primary btn--lg btn--full-width">Начать тестирование
                         </button>
@@ -1712,6 +1720,9 @@
                             <button id="print-error-report-btn" class="btn btn--secondary hidden">🖨️ Печать отчета по ошибкам</button>
                             <button id="new-test-btn" class="btn btn--primary">Новый тест</button>
                         </div>
+			            <div style="text-align: center; margin-top: 16px;">
+			                 <a href="152info" class="btn btn--primary">Пройти Обучение по 152-ФЗ</a>
+			            </div>
                     </div>
                 </div>
             </div>
@@ -1872,6 +1883,18 @@
             const {jsPDF} = window.jspdf;
 
             class PersonalDataTestApp {
+                // ========== НАЧАЛО: НОВЫЙ МЕТОД ==========
+                /**
+                 * Обрабатывает событие попытки печати во время теста.
+                 * Увеличивает счетчик попыток и отправляет лог на сервер.
+                 */
+                handleBeforePrint() {
+                    this.printAttempts++;
+                    this.logEventToServer('print_attempt', {
+                        question: this.currentQuestionIndex + 1
+                    });
+                }
+                // ========== КОНЕЦ: НОВОГО МЕТОДА ==========
 				updateProctorEye(event) {
 					if (!this.proctorEyeElement || this.proctorEyeElement.classList.contains('hidden') || this.isSaccadeInProgress) return;
 					
@@ -1978,7 +2001,7 @@
                     this.questionBank = this.decodeQuestionBank(typeof var_encodedQuestionData !== 'undefined' ? var_encodedQuestionData : '');
 
                     // --- NEW: Security and Mock DB ---
-                    this.overridePassword = 'bypass789';
+                    this.overridePassword = 'QmFzZTExNw=='; 
                     // Master password
                     this.mockUserDatabase = [];
                     // Mock database for certified users
@@ -2003,10 +2026,12 @@
                     this.boundMouseMoveHandler = null;
                     this.sessionId = this.generateUUID();
 
-                    /* ========== НАЧАЛО: Добавление счетчика и обработчика для печати/PrintScreen ========== */
+                    /* ========== НАЧАЛО: Обновленный блок ========== */
                     this.printAttempts = 0;
                     this.boundKeyUpHandler = this.handleKeyUpForPrintScreen.bind(this);
-                    /* ========== КОНЕЦ: Добавление счетчика и обработчика для печати/PrintScreen ========== */
+                    // Привязываем обработчик печати здесь, чтобы его можно было удалить
+                    this.boundBeforePrintHandler = this.handleBeforePrint.bind(this);
+                    /* ========== КОНЕЦ: Обновленный блок ========== */
 					this.boundEyeMoveHandler = null; 
 					this.proctorEyeElement = document.getElementById('proctor-eye');	
 					this.blinkInterval = null;
@@ -2400,16 +2425,20 @@
                         ;
 
                         submitButton.onclick = () => {
-                            if (passwordInput.value === this.overridePassword) {
+						    try {
+						        if (passwordInput.value === atob(this.overridePassword)) {
                                 closeModal(true);
                             } else {
                                 this.showCustomAlert('Неверный код-пароль.');
                                 passwordInput.value = '';
                                 passwordInput.focus();
-                                closeModal(false);
+						            // closeModal(false) - эта строка здесь, вероятно, не нужна
                             }
+						    } catch (e) {
+						        console.error("Ошибка при декодировании или проверке пароля:", e);
+						        this.showCustomAlert('Произошла внутренняя ошибка. Обратитесь к администратору.');
                         }
-                        ;
+						};
 
                         cancelButton.onclick = () => closeModal(false);
 
@@ -2569,7 +2598,21 @@
                         this.startTest();
                     }
                     );
-                    // Other listeners remain the same...
+                    
+                    // ========== START: ADDED BLOCK FOR PRE-FILLING FORM ==========
+                    try {
+                        const savedInfo = localStorage.getItem('lastUserInfo');
+                        if (savedInfo) {
+                            const userInfo = JSON.parse(savedInfo);
+                            document.getElementById('lastName').value = userInfo.lastName || '';
+                            document.getElementById('firstName').value = userInfo.firstName || '';
+                            document.getElementById('middleName').value = userInfo.middleName || '';
+                            document.getElementById('position').value = userInfo.position || '';
+                        }
+                    } catch (e) {
+                        console.warn('Could not read or parse user info from localStorage.');
+                    }
+                    // ========== END: ADDED BLOCK FOR PRE-FILLING FORM ==========
                     const testScreen = document.getElementById('test-screen');
                     document.getElementById('prev-btn').addEventListener('click', () => this.goToPreviousQuestion());
                     document.getElementById('next-btn').addEventListener('click', () => this.goToNextQuestion());
@@ -2642,8 +2685,9 @@
                 async startTest() {
                     const lastName = document.getElementById('lastName').value.trim();
                     const firstName = document.getElementById('firstName').value.trim();
-                    if (!lastName || !firstName) {
-                        this.showCustomAlert('Пожалуйста, заполните обязательные поля (Фамилия и Имя)');
+                    const position = document.getElementById('position').value.trim();
+                    if (!lastName || !firstName || !position) {
+                        this.showCustomAlert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя и Должность)');
                         return;
                     }
 
@@ -2702,18 +2746,13 @@
                     this.sessionFocusLossCount = 0;
                     this.sessionTotalBlurTime = 0;
 
-                    /* ========== НАЧАЛО: Сброс счетчика и добавление слушателей для печати ========== */
+                    /* ========== НАЧАЛО: ИСПРАВЛЕННЫЙ БЛОК ========== */
                     this.printAttempts = 0;
                     document.body.classList.add('test-in-progress');
-                    window.addEventListener('beforeprint', () => {
-                        this.printAttempts++;
-                        this.logEventToServer('print_attempt', {
-                            question: this.currentQuestionIndex + 1
-                        });
-                    }
-                    );
+                    // Используем привязанный обработчик, чтобы его можно было удалить
+                    window.addEventListener('beforeprint', this.boundBeforePrintHandler);
                     window.addEventListener('keyup', this.boundKeyUpHandler);
-                    /* ========== КОНЕЦ: Сброс счетчика и добавление слушателей для печати ========== */
+                    /* ========== КОНЕЦ: ИСПРАВЛЕННЫЙ БЛОК ========== */
 
 					// ========== НАЧАЛО ИЗМЕНЕНИЯ ==========
 					// Активируем следящий глаз
@@ -2878,13 +2917,13 @@
                 }
 
                 async finishTest() {
-                    const unanswered = this.userAnswers.filter(a => a === null).length;
-                    if (unanswered > 0) {
-                        const confirmed = await this.showCustomConfirm(`У вас ${unanswered} неотвеченных вопросов. Завершить тест?`);
-                        if (!confirmed)
-                            return;
-                    }
-					// Отключаем следящий глаз и анимации
+                    // ========== НАЧАЛО: ИСПРАВЛЕННЫЙ И ПЕРЕМЕЩЕННЫЙ БЛОК ОЧИСТКИ ==========
+                    // Немедленно отключаем все слушатели прокторинга, чтобы избежать ложных срабатываний.
+                    document.body.classList.remove('test-in-progress');
+                    window.removeEventListener('beforeprint', this.boundBeforePrintHandler);
+                    window.removeEventListener('keyup', this.boundKeyUpHandler);
+                    
+                    // Немедленно скрываем элементы прокторинга
 					if (this.proctorEyeElement) {
 						this.proctorEyeElement.classList.add('hidden');
 						if (this.boundEyeMoveHandler) {
@@ -2893,24 +2932,27 @@
 						}
 						clearInterval(this.blinkInterval);
 						clearInterval(this.saccadeInterval);
-						this.blinkInterval = null;
-						this.saccadeInterval = null;
 					}
-					// ========== КОНЕЦ ИЗМЕНЕНИЯ ==========					
-                    // ========== НАЧАЛО: ИЗМЕНЕНИЯ В FINISHTEST ==========
-                    await this.logEventToServer('test_finished', {
-                        results: this.results
-                    });
-                    document.getElementById('watermark').classList.add('hidden');
-                    // ========== КОНЕЦ: ИЗМЕНЕНИЯ В FINISHTEST ==========
-                    /* ========== НАЧАЛО: Удаление слушателей печати ========== */
-                    document.body.classList.remove('test-in-progress');
-                    window.removeEventListener('beforeprint', () => this.printAttempts++);
-                    window.removeEventListener('keyup', this.boundKeyUpHandler);
-                    /* ========== КОНЕЦ: Удаление слушателей печати ========== */
+                    const watermark = document.getElementById('watermark');
+                    if(watermark) watermark.classList.add('hidden');
+                    // ========== КОНЕЦ: ИСПРАВЛЕННОГО БЛОКА ОЧИСТКИ ==========
 
+                    const unanswered = this.userAnswers.filter(a => a === null).length;
+                    if (unanswered > 0) {
+                        const confirmed = await this.showCustomConfirm(`У вас ${unanswered} неотвеченных вопросов. Завершить тест?`);
+                        if (!confirmed) {
+                            // Если пользователь отменил, ВОЗВРАЩАЕМ слушатели и элементы прокторинга
+                            document.body.classList.add('test-in-progress');
+                            window.addEventListener('beforeprint', this.boundBeforePrintHandler);
+                            window.addEventListener('keyup', this.boundKeyUpHandler);
+                            if (this.proctorEyeElement) this.proctorEyeElement.classList.remove('hidden');
+                            if (watermark) watermark.classList.remove('hidden');
+                        return;
+                        }
+                    }
                     this.stopAndSavePerQuestionMetrics();
                     this.testEndTime = new Date().toISOString();
+                    await this.logEventToServer('test_finished'); // Log finish event
 
                     this.calculateResults();
                     await this.showResults();

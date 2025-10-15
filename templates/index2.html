@@ -1628,8 +1628,8 @@
                                 <input type="text" id="middleName" class="form-control">
                             </div>
                             <div class="form-group">
-                                <label for="position" class="form-label">Должность</label>
-                                <input type="text" id="position" class="form-control">
+                                <label for="position" class="form-label">Должность *</label>
+                                <input type="text" id="position" class="form-control" required>
                             </div>
                             <button type="submit" class="btn btn--primary btn--lg btn--full-width">Начать тестирование
                         </button>
@@ -1711,6 +1711,7 @@
                             <button id="print-btn" class="btn btn--secondary">🖨️ Печать результатов (экран)</button>
                             <button id="download-pdf-official-btn" class="btn btn--primary">📄 Скачать PDF (официальный)</button>
                             <button id="print-error-report-btn" class="btn btn--secondary hidden">🖨️ Печать отчета по ошибкам</button>
+                            <a href="117infographic" class="btn btn--secondary">Обучение по информационной безопасности</a>
                             <button id="new-test-btn" class="btn btn--primary">Новый тест</button>
                         </div>
                     </div>
@@ -1977,7 +1978,7 @@
                     this.questionBank = this.decodeQuestionBank(typeof var_encodedQuestionData !== 'undefined' ? var_encodedQuestionData : '');
 
                     // --- NEW: Security and Mock DB ---
-                    this.overridePassword = 'bypass789';
+                    this.overridePassword = 'QmFzZTExNw=='; 
                     // Master password
                     this.mockUserDatabase = [];
                     // Mock database for certified users
@@ -2399,16 +2400,20 @@
                         ;
 
                         submitButton.onclick = () => {
-                            if (passwordInput.value === this.overridePassword) {
+						    try {
+						        if (passwordInput.value === atob(this.overridePassword)) {
                                 closeModal(true);
                             } else {
                                 this.showCustomAlert('Неверный код-пароль.');
                                 passwordInput.value = '';
                                 passwordInput.focus();
-                                closeModal(false);
+						            // closeModal(false) - эта строка здесь, вероятно, не нужна
                             }
+						    } catch (e) {
+						        console.error("Ошибка при декодировании или проверке пароля:", e);
+						        this.showCustomAlert('Произошла внутренняя ошибка. Обратитесь к администратору.');
                         }
-                        ;
+						};
 
                         cancelButton.onclick = () => closeModal(false);
 
@@ -2568,7 +2573,21 @@
                         this.startTest();
                     }
                     );
-                    // Other listeners remain the same...
+                    
+                    // ========== START: ADDED BLOCK FOR PRE-FILLING FORM ==========
+                    try {
+                        const savedInfo = localStorage.getItem('lastUserInfo');
+                        if (savedInfo) {
+                            const userInfo = JSON.parse(savedInfo);
+                            document.getElementById('lastName').value = userInfo.lastName || '';
+                            document.getElementById('firstName').value = userInfo.firstName || '';
+                            document.getElementById('middleName').value = userInfo.middleName || '';
+                            document.getElementById('position').value = userInfo.position || '';
+                        }
+                    } catch (e) {
+                        console.warn('Could not read or parse user info from localStorage.');
+                    }
+                    // ========== END: ADDED BLOCK FOR PRE-FILLING FORM ==========
                     const testScreen = document.getElementById('test-screen');
                     document.getElementById('prev-btn').addEventListener('click', () => this.goToPreviousQuestion());
                     document.getElementById('next-btn').addEventListener('click', () => this.goToNextQuestion());
@@ -2641,8 +2660,9 @@
                 async startTest() {
                     const lastName = document.getElementById('lastName').value.trim();
                     const firstName = document.getElementById('firstName').value.trim();
-                    if (!lastName || !firstName) {
-                        this.showCustomAlert('Пожалуйста, заполните обязательные поля (Фамилия и Имя)');
+                    const position = document.getElementById('position').value.trim();
+                    if (!lastName || !firstName || !position) {
+                        this.showCustomAlert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя и Должность)');
                         return;
                     }
 
