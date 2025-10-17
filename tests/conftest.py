@@ -1,9 +1,8 @@
 # tests/conftest.py
-
 import pytest
 
 from app import create_app
-from app.extensions import db as _db  # Use _db to avoid conflicts
+from app.extensions import db as _db
 from app.models import ApiKey, User
 from tests.fixtures.sample_data import ApiKeyFactory, UserFactory
 
@@ -75,8 +74,9 @@ def admin_api_headers():
     """Returns headers with a powerful admin API key."""
     return {"X-API-Key": "admin-api-key", "Content-Type": "application/json"}
 
+
 @pytest.fixture
 def mock_redis():
     """Mock Redis client."""
-    with patch('app.extensions.redis_client') as mock:
+    with patch("app.extensions.redis_client") as mock:
         yield mock

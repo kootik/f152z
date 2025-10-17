@@ -1,9 +1,18 @@
 # app/web/routes.py
 
 import os
+from datetime import UTC, datetime
 
-from flask import (current_app, flash, redirect, render_template, request,
-                   send_from_directory, url_for, jsonify)
+from flask import (
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.extensions import db
@@ -11,10 +20,6 @@ from app.models import User
 
 from . import web_bp
 from .forms import LoginForm
-from datetime import datetime, UTC
-# =============================================================================
-# МАРШРУТЫ ДЛЯ ОСНОВНЫХ HTML-СТРАНИЦ
-# =============================================================================
 
 
 @web_bp.route("/")
@@ -163,10 +168,10 @@ def favicon():
     )
 
 
-@web_bp.route('/health')
+@web_bp.route("/health")
 def health_check():
     """Простая проверка работоспособности приложения."""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now(UTC).isoformat()
-    }), 200
+    return (
+        jsonify({"status": "healthy", "timestamp": datetime.now(UTC).isoformat()}),
+        200,
+    )

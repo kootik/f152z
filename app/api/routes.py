@@ -2,25 +2,39 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+
 from flask import current_app, jsonify, request
 from pydantic import ValidationError
 from sqlalchemy import and_, case, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from app.auth.decorators import admin_required  # <--- ОБНОВИТЕ ЭТОТ ИМПОРТ
-from app.auth.decorators import api_key_required
+from app.auth.decorators import admin_required, api_key_required
 from app.extensions import cache, csrf, db, limiter, socketio
-from app.metrics import (ANALYSIS_DURATION_SECONDS, DOCUMENTS_GENERATED_TOTAL,
-                         TESTS_COMPLETED_TOTAL)
-from app.models import (Certificate, DocumentCounter, Fingerprint,
-                        ProctoringEvent, ResultMetadata, User)
+from app.metrics import (
+    ANALYSIS_DURATION_SECONDS,
+    DOCUMENTS_GENERATED_TOTAL,
+    TESTS_COMPLETED_TOTAL,
+)
+from app.models import (
+    Certificate,
+    DocumentCounter,
+    Fingerprint,
+    ProctoringEvent,
+    ResultMetadata,
+    User,
+)
 from app.schemas.result_schema import SaveResultsRequest
-from app.utils.analytics import (compare_mouse_trajectories,
-                                 find_result_file_by_session_id)
+from app.utils.analytics import (
+    compare_mouse_trajectories,
+    find_result_file_by_session_id,
+)
 from app.utils.document import generate_document_number
 from app.utils.sanitizers import sanitize_filename
-from app.utils.validators import (validate_event_type, validate_json_data,
-                                  validate_session_id)
+from app.utils.validators import (
+    validate_event_type,
+    validate_json_data,
+    validate_session_id,
+)
 
 from . import api_bp
 
@@ -464,8 +478,10 @@ def get_full_result_data(session_id: str):
         return jsonify({"status": "error", "message": "Result not found"}), 404
 
 
-from app.utils.analytics import (compare_mouse_trajectories,
-                                 find_result_file_by_session_id)
+from app.utils.analytics import (
+    compare_mouse_trajectories,
+    find_result_file_by_session_id,
+)
 
 
 @api_bp.route("/analyze_mouse", methods=["POST"])

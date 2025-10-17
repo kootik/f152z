@@ -1,6 +1,7 @@
 # app/utils/document.py
 
-from datetime import datetime
+
+from datetime import datetime, timezone
 
 from app.models import DocumentCounter
 
@@ -16,7 +17,7 @@ def generate_document_number(db_session):
     Returns:
         Строка с новым уникальным номером документа.
     """
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     current_period = now.strftime("%y/%m")
 
     # Находим счетчик для текущего периода и блокируем эту строку в таблице

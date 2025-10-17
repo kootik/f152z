@@ -3,7 +3,7 @@
 import click
 from flask.cli import with_appcontext
 
-from app.extensions import db
+from app.extensions import cache, db
 from app.models import ApiKey, User
 
 

@@ -2,15 +2,23 @@ import logging
 import os
 import sys
 
-from flask import Flask, request
+from flask import Flask, current_app, request
 from flask_migrate import Migrate
 from flask_wtf.csrf import generate_csrf
 from prometheus_flask_exporter import PrometheusMetrics
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.api.websocket import redis_subscriber
-from app.extensions import (cache, cors, csrf, db, limiter, login_manager,
-                            redis_client, socketio)
+from app.extensions import (
+    cache,
+    cors,
+    csrf,
+    db,
+    limiter,
+    login_manager,
+    redis_client,
+    socketio,
+)
 from config import config_by_name
 
 from .api.websocket import redis_subscriber

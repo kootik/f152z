@@ -1,13 +1,26 @@
 import json
 import math
 import os
+import re
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
+
 from app.extensions import db
 from app.models import ResultMetadata
 from app.utils.validators import validate_session_id
+
+PASSING_SCORE_THRESHOLD = 80
+MAX_STUDY_SESSION_LOOKUP_HOURS = 24
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024
+PAUSE_THRESHOLD_SEC = 0.25
+MAX_DISTANCE_THRESHOLD_PX = 1000
+
+MAX_SESSION_ID_LENGTH = 128
+SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+MAX_EVENT_TYPE_LENGTH = 64
 
 
 def extract_initial_stroke(trajectory: List[List[float]]) -> List[List[float]]:

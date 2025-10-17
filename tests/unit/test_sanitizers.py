@@ -3,7 +3,6 @@ import pytest
 from app.utils.sanitizers import sanitize_filename
 
 
-# Используем параметризацию Pytest для проверки нескольких случаев одной функцией
 @pytest.mark.parametrize(
     "input_string, expected_output",
     [
