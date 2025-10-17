@@ -2,8 +2,7 @@
 set -e
 
 # --- Переменные ---
-# Теперь репозиторий не нужен, но нужно знать имя образа
-IMAGE_NAME="ghcr.io/kootik/f152z:refactor-docker-ci"
+IMAGE_NAME="ghcr.io/kootik/f152z"
 
 # --- Функции ---
 print_color() {
@@ -66,7 +65,7 @@ services:
       retries: 5
     restart: unless-stopped
   app:
-    image: ${IMAGE_NAME}:main # Используем тег 'main' для стабильной версии
+    image: ${IMAGE_NAME}::refactor-docker-ci
     environment:
       FLASK_ENV: production
       SECRET_KEY: \${SECRET_KEY}
@@ -148,7 +147,7 @@ server {
     ssl_certificate_key /etc/nginx/ssl/fz152.key;
 
     location / {
-        proxy_pass http://app:5000;
+        proxy_pass http://app:8000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
