@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учебный курс по требованиям Приказа ФСТЭК № 117</title>
+    <style>
+        :root {
+            /* Colors */
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #212529;
+            --color-text-secondary: #6c757d;
+            --color-primary: #0d6efd;
+            --color-primary-hover: #0b5ed7;
+            --color-border: #dee2e6;
+            --color-shadow: rgba(0, 0, 0, 0.075);
+            --color-success: #198754;
+            --color-danger: #dc3545;
+            --color-case-bg: #e0f2fe;
+            --color-case-border: #bae6fd;
+            --color-case-header: #0369a1;
+            --color-error-bg: #fff1f2;
+            --color-error-border: #ffdde0;
+            --color-error-header: #be123c;
+
+
+            /* Typography */
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-size-base: 16px;
+            --line-height-base: 1.7;
+			--line-height-tight: 1.2;
+            --line-height-normal: 1.5;
+			--font-weight-normal: 400;
+			--font-weight-medium: 500;
+			--font-weight-semibold: 550;
+			--font-weight-bold: 600;
+			--line-height-tight: 1.2;
+			--line-height-normal: 1.5;
+			--letter-spacing-tight: -0.01em;			
+
+			/* Spacing */
+			--space-0: 0;
+			--space-1: 1px;
+			--space-2: 2px;
+			--space-4: 4px;
+			--space-6: 6px;
+			--space-8: 8px;
+			--space-10: 10px;
+			--space-12: 12px;
+			--space-16: 16px;
+			--space-20: 20px;
+			--space-24: 24px;
+			--space-32: 32px;
+
+            /* Border Radius */
+			--radius-sm: 6px;
+            --radius-base: 8px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+			/* Animation */
+			--duration-fast: 150ms;
+			--duration-normal: 250ms;
+			--ease-standard: cubic-bezier(0.16, 1, 0.3, 1);	
+
+           /* Shadows */
+			--shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+			--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+			--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+			--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+			--shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+			/* Animation */
+			--duration-fast: 150ms;
+			--duration-normal: 250ms;
+			--ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+			/* Layout */
+			--container-sm: 640px;
+			--container-md: 768px;
+			--container-lg: 1024px;
+			--container-xl: 1280px;
+            }
+        /* --- Начало защиты от копирования --- */
+        body {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* Internet Explorer/Edge */
+            user-select: none;         /* Стандартный синтаксис */
+        }
+        /* --- Конец защиты от копирования --- */
+
+        body {
+            margin: 0;
+            font-family: var(--font-family-base);
+            font-size: var(--font-size-base);
+            line-height: var(--line-height-base);
+            color: var(--color-text);
+            background-color: var(--color-background);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            background-color: var(--color-primary);
+            color: white;
+            padding: var(--space-32) 0;
+            text-align: center;
+            box-shadow: 0 2px 4px var(--color-shadow);
+            margin-bottom: var(--space-32);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 var(--space-16) var(--space-32) var(--space-16);
+        }
+        
+        .module-card {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-md);
+            margin-bottom: var(--space-32);
+            overflow: hidden;
+        }
+        
+        .module-card__header {
+            padding: var(--space-16) var(--space-24);
+            background-color: rgba(0,0,0,0.03);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .module-card__header h2 {
+            margin: 0;
+            font-size: 1.75rem;
+            color: var(--color-primary);
+        }
+        
+        .module-card__body {
+            padding: var(--space-24);
+        }
+        
+        .module-card h3 {
+            font-size: 1.25rem;
+            margin-top: var(--space-24);
+            margin-bottom: var(--space-16);
+            color: #333;
+        }
+        
+        .module-card p {
+            margin-bottom: var(--space-16);
+        }
+
+        .rules-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .rules-list li {
+            padding-left: 30px;
+            position: relative;
+            margin-bottom: var(--space-16);
+        }
+
+        .rules-list li::before {
+            position: absolute;
+            left: 0;
+            top: 5px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .rules-list .do::before {
+            content: '✓';
+            color: var(--color-success);
+        }
+
+        .rules-list .dont::before {
+            content: '❌';
+            color: var(--color-danger);
+        }
+
+        .case-card {
+            background-color: var(--color-case-bg);
+            border: 1px solid var(--color-case-border);
+            border-left: 5px solid var(--color-case-header);
+            border-radius: var(--radius-md);
+            padding: var(--space-16);
+            margin: var(--space-24) 0;
+        }
+        
+        .case-card--error {
+            background-color: var(--color-error-bg);
+            border: 1px solid var(--color-error-border);
+            border-left: 5px solid var(--color-error-header);
+        }
+
+        .case-card .case-card__title {
+            font-weight: 600;
+            color: var(--color-case-header);
+            margin-bottom: var(--space-16);
+            display: block;
+        }
+        
+        .case-card--error .case-card__title {
+             color: var(--color-error-header);
+        }
+
+        .checklist-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: var(--space-24);
+            font-size: 0.9rem;
+        }
+
+        .checklist-table th, .checklist-table td {
+            border: 1px solid var(--color-border);
+            padding: var(--space-16);
+            text-align: left;
+        }
+
+        .checklist-table th {
+            background-color: #f1f5f9;
+        }
+        
+        .checklist-table td:nth-child(2) { background-color: #f0fff4; }
+        .checklist-table td:nth-child(3) { background-color: #fff1f2; }
+
+        .footer {
+            text-align: center;
+            padding: var(--space-24);
+            margin-top: var(--space-32);
+            background-color: #e9ecef;
+            color: var(--color-text-secondary);
+            font-size: 0.9em;
+        }
+        
+        .navigation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-16);
+            margin: var(--space-32) 0;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+        }
+        
+        .btn--primary {
+            background-color: #198754;
+            color: white;
+        }
+
+        .btn--primary:hover {
+            background-color: #157347;
+        }
+        
+        .btn--secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn--secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        /* ========== ADD THIS CSS BLOCK ========== */
+        .hidden { display: none !important; }
+
+		#watermark {
+			position: fixed;
+			top: 40vh;
+			; left: 50%;
+			transform: translate(-50%, -50%);
+			font-size: 2vw;
+			font-weight: var(--font-weight-bold);
+			color: rgb(94 82 64 / 15%);
+			pointer-events: none;
+			/* Чтобы не мешал кликать */
+			white-space: pre;
+			text-align: center;
+			z-index: 9999;
+			animation: drift 30s linear infinite alternate;
+		}
+
+		[data-color-scheme="dark"] #watermark {
+			color: rgba(255, 255, 255, 0.1);
+		}
+
+		@keyframes drift {
+			from {
+				transform: translate(-55%, -60%) rotate(-15deg);
+			}
+
+			to {
+				transform: translate(-45%, -40%) rotate(15deg);
+			}
+		}
+
+        #flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            color: var(--color-danger);
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        #flash-overlay:not(.hidden) {
+            display: flex;
+        }
+
+        @media print {
+            body > *:not(#print-block-message) {
+                display: none !important;
+            }
+            #print-block-message {
+                display: block !important;
+                text-align: center;
+                font-size: 24pt;
+                font-weight: bold;
+                padding: 50px;
+                color: #000;
+            }
+        }
+        /* ========== END CSS BLOCK ========== */
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="watermark" class="hidden"></div>
+    <div id="flash-overlay" class="hidden"></div>
+    <div id="print-block-message" class="hidden">Печать учебных материалов запрещена.</div>
+    <header class="header">
+        <h1>Учебный курс: Информационная безопасность согласно Приказу ФСТЭК № 117</h1>
+    </header>
+
+    <div class="container">
+        
+        <div class="module-card" id="module-intro">
+            <div class="module-card__header">
+                <h2>Введение: Новые правила игры</h2>
+            </div>
+            <div class="module-card__body">
+                <p>В современном цифровом мире информационная безопасность перестала быть задачей исключительно IT-отдела. Новый Приказ ФСТЭК России № 117 кардинально меняет подход к защите, где <strong>каждый сотрудник становится активным участником системы защиты информации.</strong></p>
+                <p>Приказ прямо закрепляет обязательное участие пользователей в обеспечении безопасности (п. 22) и обязывает работодателя организовывать комплексную программу обучения, включая имитационные атаки и регулярную оценку знаний (п. 56, 57). Таким образом, данный учебный курс является прямым выполнением законодательных требований.</p>
+                <p>Актуальность этих мер подтверждается суровой реальностью: доминирующими методами атак являются использование <strong>вредоносного ПО (76%)</strong> и <strong>социальная инженерия</strong>, нацеленные непосредственно на действия или ошибки сотрудников. Последствия таких атак катастрофичны: утечки данных и нарушение основной деятельности компаний.</p>
+                <p>Цель данной программы — не просто передать набор правил, а сформировать у каждого сотрудника <strong>культуру безопасности</strong>, необходимую для защиты информационных активов организации.</p>
+            </div>
+        </div>
+
+         <div class="module-card" id="module-1">
+            <div class="module-card__header">
+                <h2>Модуль 1: Обращение с информацией ограниченного доступа</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Научить сотрудников идентифицировать информацию ограниченного доступа (включая документы с пометкой «Для служебного пользования» — ДСП), понимать и применять правила ее обработки, хранения, передачи и уничтожения для предотвращения утечек.</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Всегда проверяй наличие пометки «ДСП».</strong> Она находится в правом верхнем углу. Работай с такими документами только на защищенных корпоративных компьютерах.</li>
+                    <li class="dont"><strong>Никогда не отправляй документы «ДСП»</strong> по незащищенным каналам (личная почта, мессенджеры, публичные облака) и не оставляй их без присмотра.</li>
+                    <li class="do"><strong>Убирай все документы «ДСП» в запираемый шкаф или сейф</strong>, уходя с рабочего места даже на короткое время (обед, совещание).</li>
+                    <li class="dont"><strong>Не обсуждай содержание конфиденциальных документов</strong> в присутствии посторонних, в общественных местах или по открытым линиям связи.</li>
+                    <li class="do"><strong>Уничтожай ненужные черновики и копии документов «ДСП» только с помощью шредера</strong>, который исключает возможность восстановления информации.</li>
+                </ul>
+                <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                    <p><strong>Ситуация:</strong> Вам необходимо передать коллеге из соседнего отдела отчет с пометкой «ДСП».</p>
+                    <p><strong>Правильный алгоритм:</strong> Если документ бумажный, поместите его в непрозрачный конверт и передайте лично в руки под роспись. Если электронный — используйте исключительно защищенные корпоративные каналы (служебная почта, портал).</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>Использование мусорной корзины:</strong> Выбрасывание конфиденциальных документов в обычную корзину — прямой путь к их хищению.</p>
+                    <p><strong>«Чистый стол» только на ночь:</strong> Оставление документов «ДСП» на столе во время обеда или совещания создает идеальную возможность для их фотографирования или копирования.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="module-card" id="module-2">
+             <div class="module-card__header">
+                <h2>Модуль 2: Парольная политика и правила аутентификации</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Научить сотрудников создавать, использовать и хранить пароли в соответствии с корпоративными требованиями, а также понимать критическую важность многофакторной аутентификации (МФА).</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Создавай сложные пароли:</strong> не менее 8-12 символов, включая заглавные и строчные буквы, цифры и специальные символы (@, #, $).</li>
+                    <li class="dont"><strong>Не используй личную информацию</strong> (имена, даты рождения), словарные слова и простые последовательности (qwerty, 1234567).</li>
+                    <li class="do"><strong>Используй уникальный пароль для каждой системы.</strong> Для хранения множества паролей используй рекомендованный отделом ИБ менеджер паролей.</li>
+                    <li class="dont"><strong>Никогда не записывай пароли</strong> на стикерах, в блокнотах или в незащищенных текстовых файлах на компьютере.</li>
+                    <li class="do"><strong>Всегда включай многофакторную аутентификацию (МФА)</strong>, если система это позволяет. Это дополнительный код из SMS или приложения, который защитит вас, даже если пароль украдут.</li>
+                </ul>
+                 <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                    <p><strong>Ситуация:</strong> Система требует сменить пароль. Вы придумываете новый, сложный пароль, не похожий на старый, и сохраняете его в корпоративном менеджере паролей. Никому его не сообщаете.</p>
+                    <p><strong>Ситуация:</strong> При входе в систему запрашивается шестизначный код. Вы открываете приложение-аутентификатор на смартфоне и вводите этот одноразовый код для завершения входа. Это штатная работа МФА.</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>Хранение паролей в браузере:</strong> Крайне опасно, так как вредоносные программы (инфостилеры) специализируются на краже паролей из браузеров.</p>
+                    <p><strong>Передача пароля коллеге:</strong> Грубейшее нарушение. Все действия под вашей учетной записью будут считаться вашими.</p>
+                    <p><strong>Игнорирование МФА:</strong> Это все равно что оставить дверь в квартиру открытой, понадеявшись только на замок в подъезде.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" id="module-3">
+             <div class="module-card__header">
+                <h2>Модуль 3: Безопасность при удалённой работе</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Обучить правилам безопасной организации рабочего процесса вне офиса, включая обязательное использование VPN, настройку домашней сети Wi-Fi и физическую защиту рабочего устройства.</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Всегда используй корпоративный VPN</strong> для доступа к любым рабочим ресурсам извне офиса. VPN создает зашифрованный «туннель» для ваших данных.</li>
+                    <li class="dont"><strong>Не работай с конфиденциальной информацией в публичных сетях Wi-Fi</strong> (кафе, отели, аэропорты) без активированного VPN.</li>
+                    <li class="do"><strong>Обеспечь безопасность своего домашнего Wi-Fi:</strong> смени стандартный пароль администратора роутера и используй сложный пароль для подключения к сети (с шифрованием WPA2 или WPA3).</li>
+                    <li class="dont"><strong>Не разрешай членам семьи или гостям использовать твой рабочий компьютер.</strong></li>
+                    <li class="do"><strong>Всегда блокируй экран компьютера (Win+L)</strong>, когда отходишь от него, даже дома.</li>
+                </ul>
+                 <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                    <p><strong>Ситуация:</strong> Вы в командировке и вам нужно отправить отчет из гостиницы. <strong>Правильный алгоритм:</strong> Сначала подключиться к корпоративному VPN, и только после этого открывать рабочую почту и файлы.</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>VPN «по необходимости»:</strong> Включение VPN только для доступа к внутреннему серверу, а затем его отключение. Это оставляет большую часть трафика (почта, мессенджеры) незащищенной.</p>
+                     <p><strong>Игнорирование физической безопасности:</strong> Работа в общественном месте с экраном, повернутым к окружающим, позволяет подсмотреть конфиденциальную информацию (атака «shoulder surfing»).</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" id="module-4">
+             <div class="module-card__header">
+                <h2>Модуль 4: Правила использования мобильных устройств</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Объяснить риски, связанные с использованием смартфонов и планшетов, и научить базовым мерам защиты в рамках концепции BYOD (Bring Your Own Device).</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Всегда устанавливай сложный пароль, PIN-код или биометрическую защиту</strong> (Face ID, отпечаток пальца) для разблокировки устройства.</li>
+                    <li class="dont"><strong>Не устанавливай приложения из неофициальных магазинов</strong> или по ссылкам из SMS. Используй только Google Play и Apple App Store.</li>
+                    <li class="do"><strong>Регулярно обновляй операционную систему и приложения</strong>, чтобы закрывать уязвимости.</li>
+                    <li class="dont"><strong>Не подключайся к неизвестным и незащищенным сетям Wi-Fi.</strong> Отключай Wi-Fi и Bluetooth, когда не используешь их.</li>
+                    <li class="do"><strong>Включи на устройстве функцию удаленного поиска и стирания данных</strong> (например, «Найти iPhone» или Google «Найти устройство»).</li>
+                </ul>
+                 <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                    <p><strong>Ситуация:</strong> Вы получили SMS со ссылкой на «обязательное обновление банковского приложения». <strong>Правильный алгоритм:</strong> Не переходить по ссылке. Удалить сообщение. Обновлять приложения только через официальные магазины.</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>Предоставление избыточных разрешений:</strong> Бездумно давать новым приложениям доступ к контактам, микрофону, камере и файлам.</p>
+                    <p><strong>Отсутствие блокировки экрана:</strong> В случае утери или кражи это равносильно передаче ключей от всех ваших цифровых активов в руки постороннего.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" id="module-5">
+             <div class="module-card__header">
+                <h2>Модуль 5: Противодействие фишингу и социальной инженерии</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Научить сотрудников распознавать методы психологического манипулирования (фишинг, вишинг, смишинг) и правильно реагировать на подозрительные сообщения и звонки.</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Всегда внимательно проверяй адрес отправителя.</strong> Наведи курсор на имя, чтобы увидеть реальный email. Ищи подмены символов или другой домен.</li>
+                    <li class="dont"><strong>Не переходи по ссылкам и не открывай вложения</strong> в письмах от неизвестных отправителей или в неожиданных сообщениях.</li>
+                    <li class="do"><strong>Относись с подозрением к любым сообщениям, которые вызывают сильные эмоции:</strong> срочность, страх, любопытство или жадность. Это главные триггеры мошенников.</li>
+                    <li class="dont"><strong>Никогда и никому не сообщай свои пароли, PIN-коды и коды из SMS</strong> в ответ на письмо или звонок.</li>
+                    <li class="do"><strong>Если получил необычное распоряжение от руководителя</strong> (особенно связанное с деньгами), <strong>обязательно подтверди его по другому каналу связи</strong> (позвони по телефону).</li>
+                </ul>
+                 <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                    <p><strong>Ситуация:</strong> Письмо от «Техподдержки» о переполненном ящике с требованием перейти по ссылке и ввести пароль. <strong>Правильный алгоритм:</strong> Распознать фишинг (срочность, угроза, запрос данных). Не переходить по ссылке. Переслать письмо в отдел ИБ и удалить.</p>
+                    <p><strong>Ситуация:</strong> Звонок от «службы безопасности банка» с просьбой назвать код из SMS. <strong>Правильный алгоритм:</strong> Положить трубку. Настоящий сотрудник никогда не спросит код. Самостоятельно перезвонить в банк по номеру с обратной стороны карты.</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>Доверие к внешнему виду:</strong> Видеть знакомый логотип и считать письмо подлинным, не проверяя адрес отправителя.</p>
+                    <p><strong>Паника и спешка:</strong> Выполнять требования мошенников в состоянии аффекта, не задумываясь.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" id="module-6">
+             <div class="module-card__header">
+                <h2>Модуль 6: Антивирусная защита и работа с файлами</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Объяснить роль антивируса и ответственность сотрудника за его работу. Научить безопасному обращению с файлами из внешних источников.</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Убедись, что на твоем ПК установлен и постоянно работает корпоративный антивирус.</strong></li>
+                    <li class="dont"><strong>Никогда не отключай антивирус</strong> и не добавляй файлы в исключения без указания отдела ИБ.</li>
+                    <li class="do"><strong>Если антивирус выдал предупреждение, немедленно прекрати действия</strong> и сообщи в техподдержку или отдел ИБ.</li>
+                    <li class="dont"><strong>Не скачивай программы, «кряки» или фильмы</strong> с торрентов и сомнительных сайтов на рабочий компьютер.</li>
+                    <li class="do"><strong>Перед открытием файла из внешнего источника</strong> убедись, что доверяешь отправителю. Если есть сомнения — не открывай.</li>
+                </ul>
+                 <div class="case-card">
+                    <strong class="case-card__title">Разбор практических ситуаций</strong>
+                     <p><strong>Ситуация:</strong> Вы скачали архив. <strong>Правильный алгоритм:</strong> Кликнуть по файлу правой кнопкой мыши, выбрать «Проверить антивирусом». Только после успешной проверки можно открывать.</p>
+                    <p><strong>Ситуация:</strong> Вы открыли документ Word, и он просит «Включить содержимое». <strong>Правильный алгоритм:</strong> Остановиться. Эта кнопка активирует макросы, которые могут быть вредоносными. Не нажимайте ее, если не уверены на 100% в источнике и необходимости макросов.</p>
+                </div>
+                 <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>«Слепое доверие»:</strong> Открывать файл от знакомого контакта, не допуская, что его аккаунт мог быть взломан.</p>
+                    <p><strong>Игнорирование обновлений:</strong> Откладывание установки обновлений ОС и программ оставляет в системе «дыры» для вирусов.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="module-card" id="module-7">
+             <div class="module-card__header">
+                <h2>Модуль 7: Физическая безопасность</h2>
+            </div>
+            <div class="module-card__body">
+                <h3>Цель модуля</h3>
+                <p>Привить навыки поддержания ИБ на физическом уровне: от блокировки компьютера до безопасного использования USB-носителей.</p>
+                <h3>Ключевые правила и инструкции</h3>
+                <ul class="rules-list">
+                    <li class="do"><strong>Всегда блокируй свой компьютер (Win+L)</strong>, когда отходишь от рабочего места, даже на одну минуту.</li>
+                    <li class="dont"><strong>Никогда не подключай к рабочему компьютеру найденные, подаренные или личные USB-носители.</strong> Это категорически запрещено.</li>
+                    <li class="do"><strong>Соблюдай политику «чистого стола»:</strong> в конце дня на столе не должно оставаться никаких документов, носителей или записок с паролями.</li>
+                    <li class="dont"><strong>Не оставляй без присмотра служебные устройства</strong> в общественных местах.</li>
+                    <li class="do"><strong>Если нашел бесхозную флешку, не проверяй ее.</strong> Передай находку в отдел информационной безопасности.</li>
+                </ul>
+                <div class="case-card case-card--error">
+                    <strong class="case-card__title">Типичные ошибки</strong>
+                    <p><strong>Зарядка телефона от рабочего ПК:</strong> Вредоносное ПО на телефоне может использовать этот канал для кражи информации с компьютера.</p>
+                    <p><strong>«Я на секундочку»:</strong> Уход от незаблокированного компьютера. Атака с использованием вредоносного USB-устройства занимает менее 10 секунд.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="module-card" id="module-conclusion">
+            <div class="module-card__header">
+                <h2>Заключение: Ваша роль в цепи защиты</h2>
+            </div>
+            <div class="module-card__body">
+                <p>Успешная защита — это коллективная ответственность. Ваша бдительность, знания и строгое следование правилам являются самым эффективным барьером на пути злоумышленников. Приказ ФСТЭК № 117 лишь формализует эту реальность, превращая соблюдение норм кибербезопасности из рекомендации в должностную обязанность.</p>
+                <h3>Ежедневный чек-лист по кибербезопасности</h3>
+                <table class="checklist-table">
+                    <thead>
+                        <tr>
+                            <th>Область / Действие</th>
+                            <th>✅ Делай так</th>
+                            <th>❌ Не делай так</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Рабочее место</strong></td>
+                            <td>Блокируй ПК (Win+L) при каждом уходе. Убирай документы в ящик.</td>
+                            <td>Оставлять ПК разблокированным. Оставлять документы «ДСП» на столе.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Электронная почта</strong></td>
+                            <td>Проверяй адрес отправителя. Сообщай о фишинге в ИБ.</td>
+                            <td>Переходить по ссылкам и открывать вложения в подозрительных письмах.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Пароли</strong></td>
+                            <td>Используй сложный и уникальный пароль для каждой системы.</td>
+                            <td>Записывать пароли на стикерах. Сообщать пароли коллегам.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Удаленная работа</strong></td>
+                            <td>Всегда используй VPN для доступа к рабочим ресурсам.</td>
+                            <td>Работать с конфиденциальными данными в публичных сетях Wi-Fi без VPN.</td>
+                        </tr>
+                         <tr>
+                            <td><strong>USB-носители</strong></td>
+                            <td>Используй только выданные IT-отделом флешки.</td>
+                            <td>Подключать найденные или личные флешки к рабочему ПК.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="navigation-buttons">
+            <a href="\" class="btn btn--secondary">← Назад на портал</a>
+            <a href="117test" class="btn btn--primary">Перейти к тестированию →</a>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 Отдел информационно технического обеспечения и защиты информации</p>
+    </footer>
+	
+	<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- INITIALIZE PROCTORING SYSTEM ---
+            let printAttempts = 0;
+            let maxScrollDepth = 0;
+            // Generate a unique ID for this study session
+            const sessionId = crypto.randomUUID ? crypto.randomUUID() : `study-session-${Date.now()}`;
+
+            // --- HELPER FUNCTIONS ---
+            const getCookie = (name) => {
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i = 0; i < ca.length; i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            };
+            const persistentId = getCookie('persistentUserId_infosec'); // Get the user's persistent ID
+
+            // --- EVENT LOGGING FUNCTION ---
+            const logEventToServer = async (eventType, details = {}) => {
+                const payload = {
+                    sessionId: sessionId,
+                    eventType: eventType,
+                    eventTimestamp: new Date().toISOString(),
+                    details: details
+                };
+                try {
+                    await fetch('/api/log_event', {
+                        method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': this.API_KEY
+                            },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (error) {
+                    console.error(`Failed to log event ${eventType}:`, error);
+                }
+            };
+
+            // --- TRACK USER ACTIVITY ---
+            
+            // --- WATERMARK ---
+            const watermark = document.getElementById('watermark');
+            if (watermark) {
+                const date = new Date();
+                let watermarkText = `Учебный материал 117\nМинистерство Природных Ресурсов\n${date.toLocaleDateString('ru-RU')}`;
+                if (persistentId) {
+                    watermarkText = `Идентификатор: ${persistentId.slice(0, 13)}\n${watermarkText}`;
+                }
+                watermark.innerText = watermarkText;
+                watermark.classList.remove('hidden');
+            }
+
+            // --- ACTIVITY TRACKING ---
+            window.addEventListener('scroll', () => {
+                const scrollPercent = Math.round((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100);
+                if (scrollPercent > maxScrollDepth) {
+                    const oldDepth = maxScrollDepth;
+                    maxScrollDepth = scrollPercent;
+                    // Log every 25% increment
+                    if (Math.floor(oldDepth / 25) < Math.floor(maxScrollDepth / 25)) {
+                        logEventToServer('scroll_depth_milestone', { 
+                            page: 'study-117',
+                            depth: `${Math.floor(maxScrollDepth / 25) * 25}%` 
+                        });
+                    }
+                }
+            }, { passive: true });
+
+            // 2. Track time spent viewing each module
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const moduleId = entry.target.id || 'introduction';
+                    if (entry.isIntersecting) {
+                        entry.target.dataset.viewStartTime = Date.now();
+                    } else {
+                        const startTime = entry.target.dataset.viewStartTime;
+                        if (startTime) {
+                            const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+                            if (durationSeconds > 5) { // Log if viewed for more than 5 seconds
+                                logEventToServer('module_view_time', { 
+                                    page: 'study-117',
+                                    module: moduleId, 
+                                    duration: durationSeconds 
+                                });
+                            }
+                            delete entry.target.dataset.viewStartTime;
+                        }
+                    }
+                });
+            }, { threshold: 0.5 }); // Triggers when 50% of a module is visible
+
+            document.querySelectorAll('.module-card').forEach(card => observer.observe(card));
+
+            // --- PRINT/SCREENSHOT PROCTORING ---
+            const handleKeyUpForPrintScreen = (e) => {
+                if (e.keyCode === 44) {
+                    printAttempts++;
+                    logEventToServer('screenshot_attempt', { page: 'study-117' });
+                    
+                    const overlay = document.getElementById('flash-overlay');
+                    if (overlay) {
+                        overlay.innerHTML = `Попытка ${printAttempts}:<br>Снятие скриншотов запрещено и зафиксировано.`;
+                        overlay.classList.remove('hidden');
+                        setTimeout(() => overlay.classList.add('hidden'), 1500);
+                    }
+                }
+            };
+            const handleBeforePrint = () => {
+                printAttempts++;
+                logEventToServer('print_attempt', { page: 'study-117' });
+            };
+            window.addEventListener('keyup', handleKeyUpForPrintScreen);
+            window.addEventListener('beforeprint', handleBeforePrint);
+
+            // --- LOG SESSION START ---
+            let userInfo = null;
+            try {
+                const savedInfo = localStorage.getItem('lastUserInfo');
+                if (savedInfo) userInfo = JSON.parse(savedInfo);
+            } catch (e) { console.warn('Could not read userInfo'); }
+            
+            logEventToServer('study_started', { 
+                page: 'study-117',
+                persistentId: persistentId, 
+                userInfo: userInfo 
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+    </script>
+</body>
+</html>

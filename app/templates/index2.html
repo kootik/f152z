@@ -1,0 +1,3407 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Тест на знание 152-ФЗ о персональных данных</title>
+        <!-- Подключение jsPDF -->
+        <script src="jspdf.umd.min.js"></script>
+        <!-- Подключение html2canvas -->
+        <script src="html2canvas.min.js"></script>
+        <style>
+            :root {
+                /* Colors */
+                --color-background: rgba(252, 252, 249, 1);
+                --color-surface: rgba(255, 255, 253, 1);
+                --color-text: rgba(19, 52, 59, 1);
+                --color-text-secondary: rgba(98, 108, 113, 1);
+                --color-primary: rgba(33, 128, 141, 1);
+                --color-primary-hover: rgba(29, 116, 128, 1);
+                --color-primary-active: rgba(26, 104, 115, 1);
+                --color-secondary: rgba(94, 82, 64, 0.12);
+                --color-secondary-hover: rgba(94, 82, 64, 0.2);
+                --color-secondary-active: rgba(94, 82, 64, 0.25);
+                --color-border: rgba(94, 82, 64, 0.2);
+                --color-btn-primary-text: rgba(252, 252, 249, 1);
+                --color-card-border: rgba(94, 82, 64, 0.12);
+                --color-card-border-inner: rgba(94, 82, 64, 0.12);
+                --color-error: rgba(192, 21, 47, 1);
+                --color-success: rgba(33, 128, 141, 1);
+                --color-warning: rgba(168, 75, 47, 1);
+                /* Оранжевый для предупреждений/пересдачи */
+                --color-info: rgba(98, 108, 113, 1);
+                --color-focus-ring: rgba(33, 128, 141, 0.4);
+                --color-select-caret: rgba(19, 52, 59, 0.8);
+                /* Common style patterns */
+                --focus-ring: 0 0 0 3px var(--color-focus-ring);
+                --focus-outline: 2px solid var(--color-primary);
+                --status-bg-opacity: 0.15;
+                --status-border-opacity: 0.25;
+                --select-caret-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23134252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+                --select-caret-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f5f5f5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+                /* RGB versions for opacity control */
+                --color-success-rgb: 33, 128, 141;
+                --color-error-rgb: 192, 21, 47;
+                --color-warning-rgb: 168, 75, 47;
+                --color-info-rgb: 98, 108, 113;
+                /* Typography */
+                --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                --font-family-mono: "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                --font-size-xs: 11px;
+                --font-size-sm: 12px;
+                --font-size-base: 14px;
+                --font-size-md: 14px;
+                --font-size-lg: 16px;
+                --font-size-xl: 18px;
+                --font-size-2xl: 20px;
+                --font-size-3xl: 24px;
+                --font-size-4xl: 30px;
+                --font-weight-normal: 400;
+                --font-weight-medium: 500;
+                --font-weight-semibold: 550;
+                --font-weight-bold: 600;
+                --line-height-tight: 1.2;
+                --line-height-normal: 1.5;
+                --letter-spacing-tight: -0.01em;
+                /* Spacing */
+                --space-0: 0;
+                --space-1: 1px;
+                --space-2: 2px;
+                --space-4: 4px;
+                --space-6: 6px;
+                --space-8: 8px;
+                --space-10: 10px;
+                --space-12: 12px;
+                --space-16: 16px;
+                --space-20: 20px;
+                --space-24: 24px;
+                --space-32: 32px;
+                /* Border Radius */
+                --radius-sm: 6px;
+                --radius-base: 8px;
+                --radius-md: 10px;
+                --radius-lg: 12px;
+                --radius-full: 9999px;
+                /* Shadows */
+                --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.02);
+                --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+                --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+                /* Animation */
+                --duration-fast: 150ms;
+                --duration-normal: 250ms;
+                --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+                /* Layout */
+                --container-sm: 640px;
+                --container-md: 768px;
+                --container-lg: 1024px;
+                --container-xl: 1280px;
+            }
+
+            /* ========== НАЧАЛО НОВЫХ СТИЛЕЙ ========== */
+            .warning-info {
+                margin-bottom: var(--space-24);
+                padding: var(--space-16);
+                background-color: rgba(var(--color-warning-rgb), 0.1);
+                border: 1px solid rgba(var(--color-warning-rgb), 0.2);
+                border-radius: var(--radius-md);
+                color: var(--color-text);
+            }
+
+            .warning-info h3 {
+                color: var(--color-warning);
+                margin-bottom: var(--space-12);
+            }
+
+            .warning-info p, .warning-info li {
+                font-size: var(--font-size-sm);
+                line-height: var(--line-height-normal);
+                margin-bottom: var(--space-8);
+            }
+
+            .warning-info strong {
+                font-weight: var(--font-weight-bold);
+            }
+
+            .warning-info ul {
+                list-style-type: '▸';
+                padding-left: var(--space-20);
+                margin: var(--space-12) 0;
+            }
+
+            .warning-info li {
+                padding-left: var(--space-8);
+            }
+
+            /* ========== КОНЕЦ НОВЫХ СТИЛЕЙ ========== */
+            /* Dark mode colors */
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --color-background: rgba(31, 33, 33, 1);
+                    --color-surface: rgba(38, 40, 40, 1);
+                    --color-text: rgba(245, 245, 245, 1);
+                    --color-text-secondary: rgba(167, 169, 169, 0.7);
+                    --color-primary: rgba(50, 184, 198, 1);
+                    --color-primary-hover: rgba(45, 166, 178, 1);
+                    --color-primary-active: rgba(41, 150, 161, 1);
+                    --color-secondary: rgba(119, 124, 124, 0.15);
+                    --color-secondary-hover: rgba(119, 124, 124, 0.25);
+                    --color-secondary-active: rgba(119, 124, 124, 0.3);
+                    --color-border: rgba(119, 124, 124, 0.3);
+                    --color-error: rgba(255, 84, 89, 1);
+                    --color-success: rgba(50, 184, 198, 1);
+                    --color-warning: rgba(230, 129, 97, 1);
+                    --color-info: rgba(167, 169, 169, 1);
+                    --color-focus-ring: rgba(50, 184, 198, 0.4);
+                    --color-btn-primary-text: rgba(19, 52, 59, 1);
+                    --color-card-border: rgba(119, 124, 124, 0.2);
+                    --color-card-border-inner: rgba(119, 124, 124, 0.15);
+                    --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+                    --button-border-secondary: rgba(119, 124, 124, 0.2);
+                    --color-border-secondary: rgba(119, 124, 124, 0.2);
+                    --color-select-caret: rgba(245, 245, 245, 0.8);
+                    --color-success-rgb: 50, 184, 198;
+                    --color-error-rgb: 255, 84, 89;
+                    --color-warning-rgb: 230, 129, 97;
+                    --color-info-rgb: 167, 169, 169;
+                }
+            }
+
+            [data-color-scheme="dark"] {
+                --color-background: rgba(31, 33, 33, 1);
+                --color-surface: rgba(38, 40, 40, 1);
+                --color-text: rgba(245, 245, 245, 1);
+                --color-text-secondary: rgba(167, 169, 169, 0.7);
+                --color-primary: rgba(50, 184, 198, 1);
+                --color-primary-hover: rgba(45, 166, 178, 1);
+                --color-primary-active: rgba(41, 150, 161, 1);
+                --color-secondary: rgba(119, 124, 124, 0.15);
+                --color-secondary-hover: rgba(119, 124, 124, 0.25);
+                --color-secondary-active: rgba(119, 124, 124, 0.3);
+                --color-border: rgba(119, 124, 124, 0.3);
+                --color-error: rgba(255, 84, 89, 1);
+                --color-success: rgba(50, 184, 198, 1);
+                --color-warning: rgba(230, 129, 97, 1);
+                --color-info: rgba(167, 169, 169, 1);
+                --color-focus-ring: rgba(50, 184, 198, 0.4);
+                --color-btn-primary-text: rgba(19, 52, 59, 1);
+                --color-card-border: rgba(119, 124, 124, 0.15);
+                --color-card-border-inner: rgba(119, 124, 124, 0.15);
+                --shadow-inset-sm: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+                --color-border-secondary: rgba(119, 124, 124, 0.2);
+                --color-select-caret: rgba(245, 245, 245, 0.8);
+                --color-success-rgb: 50, 184, 198;
+                --color-error-rgb: 255, 84, 89;
+                --color-warning-rgb: 230, 129, 97;
+                --color-info-rgb: 167, 169, 169;
+            }
+
+            [data-color-scheme="light"] {
+                --color-background: rgba(252, 252, 249, 1);
+                --color-surface: rgba(255, 255, 253, 1);
+                --color-text: rgba(19, 52, 59, 1);
+                --color-text-secondary: rgba(98, 108, 113, 1);
+                --color-primary: rgba(33, 128, 141, 1);
+                --color-primary-hover: rgba(29, 116, 128, 1);
+                --color-primary-active: rgba(26, 104, 115, 1);
+                --color-secondary: rgba(94, 82, 64, 0.12);
+                --color-secondary-hover: rgba(94, 82, 64, 0.2);
+                --color-secondary-active: rgba(94, 82, 64, 0.25);
+                --color-border: rgba(94, 82, 64, 0.2);
+                --color-btn-primary-text: rgba(252, 252, 249, 1);
+                --color-card-border: rgba(94, 82, 64, 0.12);
+                --color-card-border-inner: rgba(94, 82, 64, 0.12);
+                --color-error: rgba(192, 21, 47, 1);
+                --color-success: rgba(33, 128, 141, 1);
+                --color-warning: rgba(168, 75, 47, 1);
+                --color-info: rgba(98, 108, 113, 1);
+                --color-focus-ring: rgba(33, 128, 141, 0.4);
+                --color-success-rgb: 33, 128, 141;
+                --color-error-rgb: 192, 21, 47;
+                --color-warning-rgb: 168, 75, 47;
+                --color-info-rgb: 98, 108, 113;
+            }
+
+            html {
+                font-size: var(--font-size-base);
+                font-family: var(--font-family-base);
+                line-height: var(--line-height-normal);
+                color: var(--color-text);
+                background-color: var(--color-background);
+                -webkit-font-smoothing: antialiased;
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            *, *::before, *::after {
+                box-sizing: inherit;
+            }
+
+            h1, h2, h3, h4, h5, h6 {
+                margin: 0;
+                font-weight: var(--font-weight-semibold);
+                line-height: var(--line-height-tight);
+                color: var(--color-text);
+                letter-spacing: var(--letter-spacing-tight);
+            }
+
+            h1 {
+                font-size: var(--font-size-4xl);
+            }
+
+            h2 {
+                font-size: var(--font-size-3xl);
+            }
+
+            h3 {
+                font-size: var(--font-size-2xl);
+            }
+
+            h4 {
+                font-size: var(--font-size-xl);
+            }
+
+            h5 {
+                font-size: var(--font-size-lg);
+            }
+
+            h6 {
+                font-size: var(--font-size-md);
+            }
+
+            p {
+                margin: 0 0 var(--space-16) 0;
+            }
+
+            a {
+                color: var(--color-primary);
+                text-decoration: none;
+                transition: color var(--duration-fast) var(--ease-standard);
+            }
+
+            a:hover {
+                color: var(--color-primary-hover);
+            }
+
+            code, pre {
+                font-family: var(--font-family-mono);
+                font-size: calc(var(--font-size-base) * 0.95);
+                background-color: var(--color-secondary);
+                border-radius: var(--radius-sm);
+            }
+
+            code {
+                padding: var(--space-1) var(--space-4);
+            }
+
+            pre {
+                padding: var(--space-16);
+                margin: var(--space-16) 0;
+                overflow: auto;
+                border: 1px solid var(--color-border);
+            }
+
+            pre code {
+                background: none;
+                padding: 0;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: var(--space-8) var(--space-16);
+                border-radius: var(--radius-base);
+                font-size: var(--font-size-base);
+                font-weight: 500;
+                line-height: 1.5;
+                cursor: pointer;
+                transition: all var(--duration-normal) var(--ease-standard);
+                border: none;
+                text-decoration: none;
+                position: relative;
+            }
+
+            .btn:focus-visible {
+                outline: none;
+                box-shadow: var(--focus-ring);
+            }
+
+            .btn--primary {
+                background: var(--color-primary);
+                color: var(--color-btn-primary-text);
+            }
+
+            .btn--primary:hover {
+                background: var(--color-primary-hover);
+            }
+
+            .btn--primary:active {
+                background: var(--color-primary-active);
+            }
+
+            .btn--secondary {
+                background: var(--color-secondary);
+                color: var(--color-text);
+            }
+
+            .btn--secondary:hover {
+                background: var(--color-secondary-hover);
+            }
+
+            .btn--secondary:active {
+                background: var(--color-secondary-active);
+            }
+
+            .btn--warning {
+                background: var(--color-warning);
+                color: var(--color-btn-primary-text);
+            }
+
+            /* Стиль для кнопки "Пересдать" */
+            .btn--warning:hover {
+                background: rgba(168, 75, 47, 0.8);
+            }
+
+            .btn--warning:active {
+                background: rgba(168, 75, 47, 0.7);
+            }
+
+            .btn--outline {
+                background: transparent;
+                border: 1px solid var(--color-border);
+                color: var(--color-text);
+            }
+
+            .btn--outline:hover {
+                background: var(--color-secondary);
+            }
+
+            .btn--sm {
+                padding: var(--space-4) var(--space-12);
+                font-size: var(--font-size-sm);
+                border-radius: var(--radius-sm);
+            }
+
+            .btn--lg {
+                padding: var(--space-10) var(--space-20);
+                font-size: var(--font-size-lg);
+                border-radius: var(--radius-md);
+            }
+
+            .btn--full-width {
+                width: 100%;
+            }
+
+            .btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .form-control {
+                display: block;
+                width: 100%;
+                padding: var(--space-8) var(--space-12);
+                font-size: var(--font-size-md);
+                line-height: 1.5;
+                color: var(--color-text);
+                background-color: var(--color-surface);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-base);
+                transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+            }
+
+            textarea.form-control {
+                font-family: var(--font-family-base);
+                font-size: var(--font-size-base);
+            }
+
+            select.form-control {
+                padding: var(--space-8) var(--space-12);
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                background-image: var(--select-caret-light);
+                background-repeat: no-repeat;
+                background-position: right var(--space-12) center;
+                background-size: 16px;
+                padding-right: var(--space-32);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                select.form-control {
+                    background-image: var(--select-caret-dark);
+                }
+            }
+
+            [data-color-scheme="dark"] select.form-control {
+                background-image: var(--select-caret-dark);
+            }
+
+            [data-color-scheme="light"] select.form-control {
+                background-image: var(--select-caret-light);
+            }
+
+            .form-control:focus {
+                border-color: var(--color-primary);
+                outline: var(--focus-outline);
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: var(--space-8);
+                font-weight: var(--font-weight-medium);
+                font-size: var(--font-size-sm);
+            }
+
+            .form-group {
+                margin-bottom: var(--space-16);
+            }
+
+            .card {
+                background-color: var(--color-surface);
+                border-radius: var(--radius-lg);
+                border: 1px solid var(--color-card-border);
+                box-shadow: var(--shadow-sm);
+                overflow: hidden;
+                transition: box-shadow var(--duration-normal) var(--ease-standard);
+				position: relative;
+				z-index: 1;
+            }
+
+            .card:hover {
+                box-shadow: var(--shadow-md);
+            }
+
+            .card__body {
+                padding: var(--space-16);
+            }
+
+            .card__header, .card__footer {
+                padding: var(--space-16);
+                border-bottom: 1px solid var(--color-card-border-inner);
+            }
+
+            .status {
+                display: inline-flex;
+                align-items: center;
+                padding: var(--space-6) var(--space-12);
+                border-radius: var(--radius-full);
+                font-weight: var(--font-weight-medium);
+                font-size: var(--font-size-sm);
+            }
+
+            .status--success {
+                background-color: rgba(var(--color-success-rgb),var(--status-bg-opacity));
+                color: var(--color-success);
+                border: 1px solid rgba(var(--color-success-rgb),var(--status-border-opacity));
+            }
+
+            .status--error {
+                background-color: rgba(var(--color-error-rgb),var(--status-bg-opacity));
+                color: var(--color-error);
+                border: 1px solid rgba(var(--color-error-rgb),var(--status-border-opacity));
+            }
+
+            .status--warning {
+                background-color: rgba(var(--color-warning-rgb),var(--status-bg-opacity));
+                color: var(--color-warning);
+                border: 1px solid rgba(var(--color-warning-rgb),var(--status-border-opacity));
+            }
+
+            .status--info {
+                background-color: rgba(var(--color-info-rgb),var(--status-bg-opacity));
+                color: var(--color-info);
+                border: 1px solid rgba(var(--color-info-rgb),var(--status-border-opacity));
+            }
+
+            .container {
+                width: 100%;
+                margin-right: auto;
+                margin-left: auto;
+                padding-right: var(--space-16);
+                padding-left: var(--space-16);
+            }
+
+            @media (min-width: 640px) {
+                .container {
+                    max-width: var(--container-sm);
+                }
+            }
+
+            @media (min-width: 768px) {
+                .container {
+                    max-width: var(--container-md);
+                }
+            }
+
+            @media (min-width: 1024px) {
+                .container {
+                    max-width: var(--container-lg);
+                }
+            }
+
+            @media (min-width: 1280px) {
+                .container {
+                    max-width: var(--container-xl);
+                }
+            }
+
+            .flex {
+                display: flex;
+            }
+
+            .flex-col {
+                flex-direction: column;
+            }
+
+            .items-center {
+                align-items: center;
+            }
+
+            .justify-center {
+                justify-content: center;
+            }
+
+            .justify-between {
+                justify-content: space-between;
+            }
+
+            .gap-4 {
+                gap: var(--space-4);
+            }
+
+            .gap-8 {
+                gap: var(--space-8);
+            }
+
+            .gap-16 {
+                gap: var(--space-16);
+            }
+
+            .m-0 {
+                margin: 0;
+            }
+
+            .mt-8 {
+                margin-top: var(--space-8);
+            }
+
+            .mb-8 {
+                margin-bottom: var(--space-8);
+            }
+
+            .mx-8 {
+                margin-left: var(--space-8);
+                margin-right: var(--space-8);
+            }
+
+            .my-8 {
+                margin-top: var(--space-8);
+                margin-bottom: var(--space-8);
+            }
+
+            .p-0 {
+                padding: 0;
+            }
+
+            .py-8 {
+                padding-top: var(--space-8);
+                padding-bottom: var(--space-8);
+            }
+
+            .px-8 {
+                padding-left: var(--space-8);
+                padding-right: var(--space-8);
+            }
+
+            .py-16 {
+                padding-top: var(--space-16);
+                padding-bottom: var(--space-16);
+            }
+
+            .px-16 {
+                padding-left: var(--space-16);
+                padding-right: var(--space-16);
+            }
+
+            .block {
+                display: block;
+            }
+
+            .hidden {
+                display: none;
+            }
+
+            .sr-only {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0,0,0,0);
+                white-space: nowrap;
+                border-width: 0;
+            }
+
+            :focus-visible {
+                outline: var(--focus-outline);
+                outline-offset: 2px;
+            }
+
+            [data-color-scheme="dark"] .btn--outline {
+                border: 1px solid var(--color-border-secondary);
+            }
+
+            @font-face {
+                font-family: 'FKGroteskNeue';
+                src: url('FKGroteskNeue.woff2') format('woff2');
+            }
+
+            .screen {
+                display: none;
+                animation: fadeIn 0.3s ease-in;
+            }
+
+            .screen.active {
+                display: block;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+
+                to {
+                    opacity: 1;
+                }
+            }
+
+            .subtitle {
+                color: var(--color-text-secondary);
+                font-size: var(--font-size-lg);
+                margin: var(--space-8) 0 0 0;
+                text-align: center;
+            }
+
+            .test-info {
+                margin-bottom: var(--space-24);
+                padding: var(--space-16);
+                background-color: var(--color-secondary);
+                border-radius: var(--radius-md);
+            }
+
+            .test-info h3 {
+                margin-bottom: var(--space-16);
+                color: var(--color-primary);
+            }
+
+            .test-info ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .test-info li {
+                padding: var(--space-8) 0;
+                border-bottom: 1px solid var(--color-border);
+            }
+
+            .test-info li:last-child {
+                border-bottom: none;
+            }
+
+            .scoring-table {
+                margin-top: var(--space-20);
+            }
+
+            .scoring-table h4 {
+                margin-bottom: var(--space-12);
+                color: var(--color-primary);
+            }
+
+            .scoring-grid {
+                display: grid;
+                gap: var(--space-8);
+            }
+
+            .score-item {
+                padding: var(--space-8) var(--space-12);
+                border-radius: var(--radius-sm);
+                font-weight: var(--font-weight-medium);
+                font-size: var(--font-size-sm);
+            }
+
+            .score-item.excellent {
+                background-color: rgba(var(--color-success-rgb),0.15);
+                color: var(--color-success);
+                border: 1px solid rgba(var(--color-success-rgb),0.25);
+            }
+
+            .score-item.good {
+                background-color: rgba(var(--color-info-rgb),0.15);
+                color: var(--color-info);
+                border: 1px solid rgba(var(--color-info-rgb),0.25);
+            }
+
+            .score-item.satisfactory {
+                background-color: rgba(var(--color-warning-rgb),0.15);
+                color: var(--color-warning);
+                border: 1px solid rgba(var(--color-warning-rgb),0.25);
+            }
+
+            .score-item.unsatisfactory, .score-item.poor {
+                background-color: rgba(var(--color-error-rgb),0.15);
+                color: var(--color-error);
+                border: 1px solid rgba(var(--color-error-rgb),0.25);
+            }
+
+            .form-section {
+                background-color: var(--color-surface);
+                padding: var(--space-20);
+                border-radius: var(--radius-md);
+                border: 1px solid var(--color-card-border);
+            }
+
+            .form-section h3 {
+                margin-bottom: var(--space-16);
+                color: var(--color-primary);
+                text-align: center;
+            }
+
+            .test-header {
+                position: sticky;
+                top: 0;
+                background-color: var(--color-surface);
+                padding: var(--space-16);
+                border-bottom: 1px solid var(--color-border);
+                margin-bottom: var(--space-20);
+                z-index: 100;
+				position: relative;
+            }
+
+            .test-progress {
+                margin-bottom: var(--space-12);
+            }
+
+            .progress-info {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: var(--space-8);
+                font-weight: var(--font-weight-medium);
+                color: var(--color-primary);
+            }
+
+            .progress-bar {
+                width: 100%;
+                height: 8px;
+                background-color: var(--color-secondary);
+                border-radius: var(--radius-full);
+                overflow: hidden;
+            }
+
+            .progress-fill {
+                height: 100%;
+                background-color: var(--color-primary);
+                transition: width var(--duration-normal) var(--ease-standard);
+                border-radius: var(--radius-full);
+            }
+
+            .user-info {
+                text-align: center;
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+            }
+
+            .question-container {
+                max-width: 800px;
+                margin: 0 auto;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+
+            .question-content {
+                min-height: 200px;
+            }
+
+            .question-content h3 {
+                margin-bottom: var(--space-16);
+                line-height: var(--line-height-normal);
+            }
+
+            .question-type {
+                display: inline-block;
+                background-color: var(--color-primary);
+                color: var(--color-btn-primary-text);
+                padding: var(--space-4) var(--space-8);
+                border-radius: var(--radius-sm);
+                font-size: var(--font-size-xs);
+                font-weight: var(--font-weight-medium);
+                margin-bottom: var(--space-16);
+            }
+
+            .answers-container {
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-12);
+            }
+
+            .answer-option {
+                display: flex;
+                align-items: flex-start;
+                padding: var(--space-12);
+                border: 2px solid var(--color-border);
+                border-radius: var(--radius-base);
+                cursor: pointer;
+                transition: all var(--duration-fast) var(--ease-standard);
+                background-color: var(--color-surface);
+            }
+
+            .answer-option:hover {
+                border-color: var(--color-primary);
+                background-color: rgba(var(--color-success-rgb),0.05);
+            }
+
+            .answer-option.selected {
+                border-color: var(--color-primary);
+                background-color: rgba(var(--color-success-rgb),0.1);
+            }
+
+            .answer-option input[type="radio"] {
+                margin-right: var(--space-12);
+                margin-top: var(--space-2);
+            }
+
+            .answer-text {
+                flex: 1;
+                line-height: var(--line-height-normal);
+            }
+
+            .answer-label {
+                font-weight: var(--font-weight-medium);
+                color: var(--color-primary);
+                margin-right: var(--space-8);
+                min-width: 20px;
+            }
+
+            .navigation-buttons {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: var(--space-24);
+                padding-top: var(--space-16);
+                border-top: 1px solid var(--color-border);
+            }
+
+            .navigation-buttons .btn {
+                min-width: 120px;
+            }
+
+            .results-info {
+                text-align: center;
+                margin-bottom: var(--space-24);
+                padding: var(--space-16);
+                background-color: var(--color-secondary);
+                border-radius: var(--radius-md);
+            }
+
+            .result-details {
+                display: grid;
+                gap: var(--space-24);
+                margin-bottom: var(--space-24);
+            }
+
+            .score-display {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: var(--space-24);
+                flex-wrap: wrap;
+            }
+
+            .score-circle {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 120px;
+                height: 120px;
+                border: 4px solid var(--color-primary);
+                border-radius: 50%;
+                background-color: var(--color-surface);
+            }
+
+            .score-circle span {
+                font-size: var(--font-size-3xl);
+                font-weight: var(--font-weight-bold);
+                color: var(--color-primary);
+            }
+
+            .score-circle small {
+                font-size: var(--font-size-sm);
+                color: var(--color-text-secondary);
+            }
+
+            .grade-display {
+                text-align: center;
+            }
+
+            .grade-text {
+                font-size: var(--font-size-2xl);
+                font-weight: var(--font-weight-semibold);
+                margin-bottom: var(--space-8);
+            }
+
+            .grade-number {
+                font-size: var(--font-size-4xl);
+                font-weight: var(--font-weight-bold);
+                color: var(--color-primary);
+            }
+
+            .test-stats {
+                display: grid;
+                gap: var(--space-12);
+                padding: var(--space-16);
+                background-color: var(--color-secondary);
+                border-radius: var(--radius-md);
+            }
+
+            .stat-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: var(--space-8) 0;
+                border-bottom: 1px solid var(--color-border);
+            }
+
+            .stat-item:last-child {
+                border-bottom: none;
+            }
+
+            .stat-label {
+                font-weight: var(--font-weight-medium);
+            }
+
+            .stat-value {
+                font-weight: var(--font-weight-bold);
+                color: var(--color-primary);
+            }
+
+            .action-buttons {
+                display: flex;
+                gap: var(--space-16);
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .action-buttons .btn {
+                min-width: 150px;
+            }
+
+            @media (max-width: 768px) {
+                .container {
+                    padding: var(--space-8);
+                }
+
+                .card__body {
+                    padding: var(--space-12);
+                }
+
+                .form-section {
+                    padding: var(--space-16);
+                }
+
+                .test-header {
+                    padding: var(--space-12);
+                }
+
+                .navigation-buttons {
+                    flex-direction: column;
+                    gap: var(--space-12);
+                }
+
+                .navigation-buttons .btn {
+                    width: 100%;
+                    min-width: auto;
+                }
+
+                .score-display {
+                    flex-direction: column;
+                    gap: var(--space-16);
+                }
+
+                .action-buttons {
+                    flex-direction: column;
+                }
+
+                .action-buttons .btn {
+                    width: 100%;
+                    min-width: auto;
+                }
+
+                .scoring-grid {
+                    gap: var(--space-6);
+                }
+
+                .score-item {
+                    font-size: var(--font-size-xs);
+                    padding: var(--space-6) var(--space-8);
+                }
+            }
+
+            @media (max-width: 480px) {
+                .answer-option {
+                    padding: var(--space-8);
+                }
+
+                .answer-option input[type="radio"] {
+                    margin-right: var(--space-8);
+                }
+
+                .score-circle {
+                    width: 100px;
+                    height: 100px;
+                }
+
+                .score-circle span {
+                    font-size: var(--font-size-2xl);
+                }
+            }
+
+            /* Стили для печати отчета об ошибках (printErrorReportBtn) */
+            @media print {
+                /* Директива для управления параметрами страницы при печати */
+                @page {
+                    /* Устанавливаем размер бумаги А4 */
+                    size: A4;
+                    /* Убираем стандартные колонтитулы и поля браузера */
+                    margin: 0;
+                }
+                body.printing-specific-report > *:not(#errorReportPrintArea):not(#pdf-official-blank-container.printing-official-blank) {
+                    display: none !important;
+                }
+
+                #errorReportPrintArea.printing-error-report, #pdf-official-blank-container.printing-official-blank {
+                    display: block !important;
+                    font-family: 'Times New Roman', Times, serif;
+                    /* Меняем шрифт для печати на более официальный */
+                    font-size: 12pt;
+                    color: #000;
+                    margin: 0;
+                    /* Убираем внешние отступы для печати всего бланка */
+                    padding: 10mm 15mm 10mm 20mm;
+                    /* Поля как у бланка */
+                    width: 210mm !important;
+                    min-height: 297mm !important;
+                    box-sizing: border-box;
+                    position: static !important;
+                    left: auto !important;
+                    top: auto !important;
+                    box-shadow: none !important;
+                    border: none !important;
+                    background-color: white !important;
+                    /* Белый фон для печати */
+                }
+
+                /* Специфичные стили для элементов внутри печатаемых блоков */
+                .printing-error-report h2, .printing-error-report h3, .printing-error-report h4, .printing-official-blank h4 {
+                    margin-top: 10px;
+                    /* Уменьшаем верхний отступ для заголовков */
+                    margin-bottom: 8px;
+                    color: #000;
+                    border-bottom: 1px solid #666;
+                    /* Более темная линия */
+                    padding-bottom: 3px;
+                }
+
+                .printing-error-report p, .printing-error-report li, .printing-official-blank p, .printing-official-blank li {
+                    margin-bottom: 6px;
+                    color: #000;
+                    line-height: 1.4;
+                    /* Немного уменьшаем межстрочный интервал */
+                }
+
+                .printing-error-report ul, .printing-official-blank ul {
+                    list-style-type: disc;
+                    /* Меняем на disc для ошибок, если нужно */
+                    padding-left: 25px;
+                    /* Немного уменьшаем отступ */
+                    color: #000;
+                }
+
+                .printing-error-report .print-section, .printing-official-blank .pdf-section {
+                    margin-bottom: 15px;
+                    /* Уменьшаем отступ между секциями */
+                    padding-bottom: 8px;
+                    border-bottom: 1px solid #ccc;
+                }
+
+                .printing-error-report .print-section:last-child, .printing-official-blank .pdf-section:last-of-type {
+                    border-bottom: none;
+                }
+
+                .printing-error-report .print-footer, .printing-official-blank .pdf-footer {
+                    margin-top: 20px;
+                    /* Уменьшаем отступ */
+                    padding-top: 8px;
+                    border-top: 1px solid #ccc;
+                    font-size: 9pt;
+                    /* Уменьшаем шрифт подвала */
+                    text-align: center;
+                    color: #000;
+                }
+
+                .printing-official-blank .pdf-header .ministry-name {
+                    font-size: 13pt;
+                }
+
+                .printing-official-blank .pdf-header .ministry-details {
+                    font-size: 9pt;
+                }
+
+                .printing-official-blank .pdf-document-title {
+                    font-size: 14pt;
+                    margin-top: 20px;
+                    margin-bottom: 20px;
+                }
+
+                .printing-official-blank .pdf-section h4 {
+                    font-size: 12pt;
+                }
+
+                .printing-official-blank .pdf-section p, .printing-official-blank .pdf-section li {
+                    font-size: 11pt;
+                }
+
+                .printing-official-blank .pdf-signature-area p {
+                    font-size: 12pt;
+                    margin-bottom: 2px;
+                }
+
+                .printing-official-blank .pdf-signature-area .signature-line {
+                    margin-top: 20px;
+                }
+
+                .printing-official-blank .pdf-signature-area .signature-explanation {
+                    font-size: 9pt;
+                }
+
+                /* Скрываем все кнопки при любой печати */
+                .action-buttons, .navigation-buttons {
+                    display: none !important;
+                }
+
+                /* Стили для "Печать результатов (экран)" - когда НЕ печатается отчет об ошибках или официальный бланк*/
+                body:not(.printing-specific-report) #results-screen .card {
+                    border: none;
+                    box-shadow: none;
+                }
+
+                body:not(.printing-specific-report) #results-screen .card__header h1 {
+                    font-size: 24pt;
+                }
+
+                /* Этот блок для блокировки печати во время теста */
+                body.test-in-progress #start-screen, body.test-in-progress #test-screen, body.test-in-progress #results-screen {
+                    display: none !important;
+                }
+
+                body.test-in-progress::before {
+                    content: "Печать страницы во время прохождения теста запрещена.";
+                    display: block;
+                    text-align: center;
+                    font-size: 24pt;
+                    font-weight: bold;
+                    padding: 50px;
+                    color: #000;
+                }
+            }
+
+            .error-report-for-print {
+                display: none;
+            }
+
+            /* Стили для официального бланка PDF */
+            #pdf-official-blank-container {
+                display: none;
+                width: 210mm !important;
+                min-height: 290mm;
+                /* Уменьшил немного для запаса на поля */
+                margin: 0;
+                padding: 10mm 15mm 10mm 20mm;
+                background-color: white;
+                color: black;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 12pt;
+                line-height: 1.3;
+                /* Немного плотнее */
+                box-sizing: border-box;
+                position: absolute;
+                left: -9999px;
+                /* Скрываем за экраном */
+                top: -9999px;
+                z-index: -1;
+            }
+
+            .pdf-header {
+                text-align: center;
+                margin-bottom: 8mm;
+                position: relative;
+                padding-top: 3mm;
+            }
+
+            .pdf-header .emblem {
+                position: absolute;
+                top: 3mm;
+                left: 0;
+                width: 22mm;
+                /* Уменьшил эмблему */
+                height: auto;
+            }
+
+            .pdf-header .ministry-name {
+                font-size: 12pt;
+                font-weight: bold;
+                text-transform: uppercase;
+                margin-bottom: 1.5mm;
+                padding-left: 25mm;
+            }
+
+            .pdf-header .ministry-details {
+                font-size: 8pt;
+                line-height: 1.2;
+                padding-left: 25mm;
+            }
+
+            .pdf-header .contacts-divider {
+                width: 75%;
+                margin: 1.5mm auto 0 auto;
+                border-top: 0.5pt solid #000;
+                margin-left: calc( (100% - 75%)/2 + 12.5mm);
+            }
+
+            .pdf-doc-info {
+                /* Убрано из макета */
+                display: none;
+            }
+
+            .pdf-document-title {
+                text-align: center;
+                font-size: 14pt;
+                font-weight: bold;
+                margin-top: 5mm;
+                margin-bottom: 6mm;
+            }
+
+            .pdf-section {
+                margin-bottom: 5mm;
+                /* ~26pt */
+            }
+
+            .pdf-section h4 {
+                font-size: 12pt;
+                font-weight: bold;
+                margin-top: 0;
+                margin-bottom: 2mm;
+            }
+
+            .pdf-section p, .pdf-section li {
+                font-size: 12pt;
+                margin-bottom: 1.5mm;
+                /* ~7.5pt */
+            }
+
+            .pdf-section ul {
+                list-style-type: none;
+                /* Убираем маркеры для списка ошибок, если будут */
+                padding-left: 0;
+            }
+
+            .pdf-section li {
+                padding-left: 1.5em;
+                /* Отступ для текста в li, если нужен */
+                text-indent: -1.5em;
+                /* Выравнивание, если маркеры скрыты */
+            }
+
+            .pdf-table-like {
+                margin-bottom: 4mm;
+            }
+
+            .pdf-table-like p {
+                margin-bottom: 1mm;
+            }
+
+            .pdf-table-like strong {
+                display: inline-block;
+                width: 220px;
+                /* Ширина для левой части "таблицы" */
+            }
+
+            .pdf-signature-section {
+                margin-top: 8mm;
+            }
+
+            .pdf-signature-block {
+                margin-bottom: 5mm;
+            }
+
+            .pdf-signature-block p {
+                margin-bottom: 1mm;
+                font-size: 11pt;
+            }
+
+            .pdf-signature-line-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                margin-top: 3mm;
+            }
+
+            .pdf-signature-item {
+                display: inline-block;
+                width: 48%;
+            }
+
+            .pdf-signature-item.full-width {
+                width: 100%;
+                /* Для подписи обучаемого */
+            }
+
+            .pdf-signature-line {
+                border-bottom: 0.5pt solid black;
+                display: inline-block;
+                width: 100px;
+                margin: 0 3px;
+            }
+
+            .pdf-signature-explanation {
+                font-size: 8pt;
+                color: #333;
+                text-align: center;
+                display: block;
+                margin-top: 0.5mm;
+            }
+
+            .pdf-signature-fio {
+                display: inline-block;
+                font-size: 10pt;
+                /* Уменьшил ФИО под подписью */
+            }
+
+            .pdf-footer {
+                /* Полностью убираем, так как дата теперь в заголовке */
+                display: none;
+            }
+
+            .grade-excellent {
+                color: var(--color-success);
+            }
+
+            .grade-good {
+                color: var(--color-info);
+            }
+
+            .grade-satisfactory {
+                color: var(--color-warning);
+            }
+
+            .grade-unsatisfactory, .grade-poor {
+                color: var(--color-error);
+            }
+
+            .answer-option:focus-within {
+                outline: var(--focus-outline);
+                outline-offset: 2px;
+            }
+
+            .btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+			/* ========== НАЧАЛО: Обновленные стили для следящего глаза ========== */
+
+			/* Контейнер глаза */
+			#proctor-eye {
+				position: absolute;
+				top: 50%;
+				left: 28%; /* Позиционирование левее центра */
+				transform: translateY(-50%);
+				width: 80px;   /* Ширина глаза */
+				height: 50px;  /* Высота глаза (эллиптическая форма) */
+				z-index: 101;  /* Над заголовком, под водяным знаком */
+				opacity: 0.9; /* Слегка полупрозрачный */
+				transition: opacity 0.5s ease-in-out;
+			}
+
+			/* Белок глаза */
+			#proctor-eye .eyeball {
+				width: 100%;
+				height: 100%;
+				background: linear-gradient(145deg, var(--color-surface-light), var(--color-surface-dark)); /* Мягкий градиент */
+				border-radius: 50%; /* Полностью круглый глаз */
+				border: 2px solid var(--color-border); /* Немного тоньше рамка */
+				position: relative;
+				overflow: hidden;
+				/* Улучшенная тень для объема */
+				box-shadow: 
+					inset 0 0 8px rgba(0, 0, 0, 0.1), /* Внутренняя тень */
+					0 4px 10px rgba(0, 0, 0, 0.2);   /* Внешняя тень */
+			}
+
+			/* Зрачок */
+			#proctor-eye .pupil {
+				width: 25px;   /* Немного больше */
+				height: 25px;  /* Немного больше */
+				background: radial-gradient(circle at 30% 30%, #444, var(--color-text) 80%); /* Градиент для блеска */
+				border-radius: 50%;
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				margin-top: -12.5px; /* Центрирование */
+				margin-left: -12.5px; /* Центрирование */
+				/* Плавное движение */
+				transition: transform 0.15s ease-out; 
+				box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Легкая тень для объема зрачка */
+			}
+
+			/* Дополнительные стили, если глаз скрыт */
+			#proctor-eye.hidden {
+				opacity: 0;
+				pointer-events: none; /* Гарантируем, что он не будет перехватывать события, когда скрыт */
+			}
+
+			/* ========== ADD THIS CSS BLOCK ========== */
+			@keyframes blink {
+				0%, 100% { transform: scaleY(1); }
+				50% { transform: scaleY(0.1); } /* The "closed" state of the eye */
+			}
+
+			#proctor-eye .eyeball.blinking {
+				/* Applies the blink animation when the class is added */
+				animation: blink 0.3s ease-in-out;
+			}
+			/* ========== ДОБАВИТЬ ЭТОТ БЛОК CSS ========== */
+			#proctor-eye.warning .pupil {
+				background: radial-gradient(circle at 30% 30%, #fde047, #d97706 80%); /* Желтый */
+			}
+
+			#proctor-eye.alert .pupil {
+				background: radial-gradient(circle at 30% 30%, #fca5a5, #dc2626 80%); /* Красный */
+				animation: pulse 0.5s ease-in-out;
+			}
+
+			@keyframes pulse {
+				0%, 100% { transform: scale(1); }
+				50% { transform: scale(1.2); }
+			}
+			/* ========== КОНЕЦ БЛОКА ========== */			
+			/* ========== END CSS BLOCK ========== */
+
+			/* ========== КОНЕЦ: Обновленные стили ========== */
+
+            #watermark {
+                position: fixed;
+                top: 25vh;
+                ; left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 2vw;
+                font-weight: var(--font-weight-bold);
+                color: rgba(94, 82, 64, 0.25);
+                pointer-events: none;
+                /* Чтобы не мешал кликать */
+                white-space: pre;
+                text-align: center;
+                z-index: 9999;
+                animation: drift 30s linear infinite alternate;
+            }
+
+            [data-color-scheme="dark"] #watermark {
+                color: rgba(255, 255, 255, 0.1);
+            }
+
+            @keyframes drift {
+                from {
+                    transform: translate(-55%, -60%) rotate(-15deg);
+                }
+
+                to {
+                    transform: translate(-45%, -40%) rotate(15deg);
+                }
+            }
+
+			#flash-overlay {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(255, 255, 255, 0.9);
+				z-index: 10000;
+				justify-content: center;
+				align-items: center;
+				color: var(--color-error);
+				font-size: 2rem;
+				font-weight: var(--font-weight-bold);
+				text-align: center;
+			}
+
+
+			#flash-overlay:not(.hidden) {
+				display: flex;
+			}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div id="start-screen" class="screen active">
+                <div class="card">
+                    <div class="card__header">
+                        <h1>Тест на знание 152-ФЗ о персональных данных</h1>
+                        <p class="subtitle">О персональных данных</p>
+                    </div>
+                    <div class="card__body">
+                        <!-- ========== НАЧАЛО НОВОГО БЛОКА ========== -->
+                        <div class="warning-info">
+                            <h3>Внимание! Важная информация перед началом</h3>
+                            <p>Данное тестирование является обязательной процедурой для подтверждения вашей квалификации и получения доступа к информационным ресурсам министерства.</p>
+                            <p>
+                                <strong>К каждому тестированию следует относиться как к единственной попытке.</strong>
+                            </p>
+                            <p>Наша система оснащена современными средствами прокторинга для обеспечения честности и объективности результатов. Во время прохождения теста производится непрерывный мониторинг и анализ следующих параметров:</p>
+                            <ul>
+                                <li>
+                                    <strong>Поведенческая биометрия:</strong>
+                                    анализируется динамика вашей работы с клавиатурой и мышью для создания уникального цифрового отпечатка.
+                                </li>
+                                <li>
+                                    <strong>Отслеживание фокуса:</strong>
+                                    система фиксирует все случаи ухода со страницы тестирования (переключение на другие вкладки или приложения).
+                                </li>
+                                <li>
+                                    <strong>Уникальность сессии:</strong>
+                                    каждый запуск теста записывается и связывается с вашим цифровым профилем, исключая возможность анонимной или повторной сдачи без специального разрешения.
+                                </li>
+                            </ul>
+                            <p>Любая подозрительная активность, включая попытки копирования, использования сторонних ресурсов или нетипичное поведение, будет автоматически зафиксирована и передана в отдел информационно технического обеспечения и защиты информации для дальнейшего рассмотрения. Результаты данного тестирования являются окончательными и могут повлиять на ваши права доступа в системе.</p>
+                        </div>
+                        <!-- ========== КОНЕЦ НОВОГО БЛОКА ========== -->
+                        <div class="test-info">
+                            <h3>Информация о тестировании</h3>
+                            <ul>
+                                <li>
+                                    Общий банк вопросов: <strong>150 вопросов</strong>
+                                </li>
+                                <li>
+                                    Количество вопросов в тесте: <strong>25 вопросов</strong>
+                                </li>
+                                <li>
+                                    Время прохождения: <strong>Без ограничений</strong>
+                                </li>
+                                <li>Типы вопросов: множественный выбор и "Верно/Неверно"</li>
+                            </ul>
+                            <div class="scoring-table">
+                                <h4>Система оценивания:</h4>
+                                <div class="scoring-grid">
+                                    <div class="score-item excellent">90-100% - Отлично (5)</div>
+                                    <div class="score-item good">80-89% - Хорошо (4)</div>
+                                    <div class="score-item satisfactory">70-79% - Удовлетворительно (3)</div>
+                                    <div class="score-item unsatisfactory">60-69% - Неудовлетворительно (2)</div>
+                                    <div class="score-item poor">Менее 60% - Плохо (2)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <form id="user-form" class="form-section">
+                            <h3>Введите ваши данные</h3>
+                            <div class="form-group">
+                                <label for="lastName" class="form-label">Фамилия *</label>
+                                <input type="text" id="lastName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="firstName" class="form-label">Имя *</label>
+                                <input type="text" id="firstName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="middleName" class="form-label">Отчество</label>
+                                <input type="text" id="middleName" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="position" class="form-label">Должность *</label>
+                                <input type="text" id="position" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn--primary btn--lg btn--full-width">Начать тестирование
+                        </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div id="test-screen" class="screen">
+                <div class="test-header">
+					<div id="proctor-eye" class="hidden">
+						<div class="eyeball">
+							<div class="pupil"></div>
+						</div>
+					</div>					
+                    <div class="test-progress">
+                        <div class="progress-info">
+                            <span id="current-question">1</span>
+                            из <span id="total-questions">25</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+                    <div class="user-info" id="user-info"></div>
+                </div>
+                <div id="watermark" class="hidden"></div>
+                <div id="flash-overlay" class="hidden"></div>
+                <div class="question-container">
+                    <div class="card">
+                        <div class="card__body">
+                            <div class="question-content">
+                                <h3 id="question-text"></h3>
+                                <div id="question-type" class="question-type"></div>
+                                <div id="answers-container" class="answers-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="navigation-buttons">
+                        <button id="prev-btn" class="btn btn--outline">← Назад</button>
+                        <button id="next-btn" class="btn btn--primary">Вперед →</button>
+                        <button id="finish-btn" class="btn btn--primary hidden">Завершить тест</button>
+                    </div>
+                </div>
+            </div>
+            <div id="results-screen" class="screen">
+                <div class="card">
+                    <div class="card__header">
+                        <h1>Результаты тестирования</h1>
+                    </div>
+                    <div class="card__body">
+                        <div class="results-info" id="results-info"></div>
+                        <div class="result-details">
+                            <div class="score-display">
+                                <div class="score-circle">
+                                    <span id="score-percentage"></span>
+                                    <small>из 100%</small>
+                                </div>
+                                <div class="grade-display">
+                                    <div id="grade-text" class="grade-text"></div>
+                                    <div id="grade-number" class="grade-number"></div>
+                                </div>
+                            </div>
+                            <div class="test-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Правильных ответов:</span>
+                                    <span id="correct-answers" class="stat-value"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Неправильных ответов:</span>
+                                    <span id="incorrect-answers" class="stat-value"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Всего вопросов:</span>
+                                    <span class="stat-value">25</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button id="print-btn" class="btn btn--secondary">🖨️ Печать результатов (экран)</button>
+                            <button id="download-pdf-official-btn" class="btn btn--primary">📄 Скачать PDF (официальный)</button>
+                            <button id="print-error-report-btn" class="btn btn--secondary hidden">🖨️ Печать отчета по ошибкам</button>
+                            <a href="117infographic" class="btn btn--secondary">Обучение по информационной безопасности</a>
+                            <button id="new-test-btn" class="btn btn--primary">Новый тест</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="errorReportPrintArea" class="error-report-for-print"></div>
+	    <div id="pdf-official-blank-container">
+	        <div class="pdf-header">
+            <img src="{{ url_for('static', filename='Coat_of_Arms_of_Krasnodar_Krai.svg') }}"
+	                 alt="" class="emblem" onerror="this.style.display='none'"/>
+	            <div class="ministry-name">Министерство природных ресурсов Краснодарского края</div>
+	            <div class="ministry-details">
+	                350020, г. Краснодар, ул. Северная, д. 275/1 <br>
+	                Тел.: +7 (861) 279-00-49, E-mail: mprkk@krasnodar.ru, Сайт: mpr.krasnodar.ru
+	            </div>
+	            <div class="contacts-divider"></div>
+	        </div>
+
+	        <div class="pdf-document-title">
+	            ЗАКЛЮЧЕНИЕ <span id="pdf-doc-number"></span><br>
+	            <span style="font-size: 12pt; font-weight: normal;">
+	                о проверке знаний требований законодательства Российской Федерации<br> в области персональных данных  и допуске к самостоятельной работе с информацией, обрабатываемой в рамках  Федерального закона <br> от 27 июля 2006 г. № 152-ФЗ "О персональных данных"
+	            </span>
+	        </div>
+
+	        <div class="pdf-section pdf-table-like">
+	            <p><strong>Пользователь (сотрудник):</strong> <span id="pdf-user-fullname"></span></p>
+	            <p><strong>Должность:</strong> <span id="pdf-user-position"></span></p>
+	        </div>
+
+	        <div class="pdf-section">
+	            <p><strong>Основания для проведения проверки знаний:</strong></p>
+	            <p style="text-indent: 2em;">Федеральный закон от 27 июля 2006 г. № 152-ФЗ "О персональных данных", локальные нормативные акты Министерства природных ресурсов Краснодарского края в области обработки и защиты персональных данных.</p>
+	            </div>
+
+	        <div class="pdf-section pdf-table-like">
+	            <p><strong>Проверка знаний проводилась:</strong> "<span id="pdf-test-day"></span>" <span id="pdf-test-month"></span> <span id="pdf-test-year"></span> г.</p>
+	        </div>
+
+	        <div class="pdf-section">
+	            <p><strong>Результаты проверки:</strong></p>
+	            <p style="text-indent: 2em;">1. Ранее подготовку по данному направлению: <span id="pdf-prev-training-status">ПРОХОДИЛ(А) / НЕ ПРОХОДИЛ(А)</span></p>
+	            <p style="text-indent: 2em;">2. Пройденный материал по итогам тестирования: <span id="pdf-material-mastered">УСВОИЛ(А) / НЕ УСВОИЛ(А)</span></p>
+	            <p style="text-indent: 2em;">3. Контрольную работу (тестирование): <span id="pdf-test-passed">ВЫПОЛНИЛ(А) / НЕ ВЫПОЛНИЛ(А)</span></p>
+	            <p style="text-indent: 2em;">   (Процент правильных ответов: <span id="pdf-score-percentage-val-inline"></span>%, Оценка: <span id="pdf-grade-text-val-inline"></span>)</p>
+	        </div>
+
+	        <div class="pdf-section">
+	            <p><strong>Заключение комиссии:</strong></p>
+	            <p style="text-indent: 2em;"><span id="pdf-commission-decision">Допустить / Не допустить</span> Пользователя (сотрудника) <span id="pdf-user-fullname-conclusion"></span>, <span id="pdf-user-position-conclusion"></span>, к самостоятельной работе с информацией, обрабатываемой в рамках Федерального закона от 27 июля 2006 г. № 152-ФЗ "О персональных данных".</p>
+	        </div>
+
+	        <div class="pdf-signature-section">
+	            <div class="pdf-signature-block">
+	                <p style="margin-bottom: 3mm;">Обучающие:</p>
+	                <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+	                    <tr>
+	                        <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">Начальник отдела ИТОиЗИ<br></td>
+	                        <td style="width: 15%; text-align: center; padding-bottom: 3mm; vertical-align: bottom;"> <span class="pdf-signature-line" style="width:80px;"></span></td>
+	                        <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">Кучуров Е.В.</span>)</td>
+	                    </tr>
+	                    <tr>
+	                        <td colspan="3" style="font-size: 8pt; text-align: center; padding-left: 100px; padding-right: 50px;">(подпись)</td>
+	                    </tr>
+	                     <tr><td colspan="3" style="height: 2mm;"></td></tr> <tr>
+	                        <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">Главный консультант отдела ИТОиЗИ<br></td>
+	                        <td style="width: 15%; text-align: center; padding-bottom: 3mm; vertical-align: bottom;"><span class="pdf-signature-line" style="width:80px;"></span></td>
+	                        <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">Каныгин А.С.</span>)</td>
+	                    </tr>
+	                     <tr>
+	                        <td colspan="3" style="font-size: 8pt; text-align: center; padding-left: 100px; padding-right: 50px;">(подпись)</td>
+	                    </tr>
+	                </table>
+	                 <p style="text-align: right; margin-top: 3mm; font-size: 11pt;">"<span id="pdf-training-day"></span>" <span id="pdf-training-month"></span> <span id="pdf-training-year"></span> г.</p>
+	            </div>
+
+	            <div class="pdf-signature-block" style="margin-top: 5mm;">
+	                <p style="margin-bottom: 0mm;">Обучающийся (Пользователь):</p>
+	                 <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+	                    <tr>
+	                        <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;"><span id="pdf-user-position-signature"></span></td>
+	                        <td style="width: 15%; text-align: center; padding-bottom: 3mm; vertical-align: bottom;"><span class="pdf-signature-line" style="width:80px;"></span></td>
+	                        <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span id="pdf-user-fullname-signature"></span>)</td>
+	                    </tr>
+	                     <tr>
+	                        <td colspan="3" style="font-size: 8pt; text-align: center; padding-left: 100px; padding-right: 50px;">(подпись)</td>
+	                    </tr>
+	                </table>
+	                 <p style="text-align: right; margin-top: 3mm; font-size: 11pt;">"<span id="pdf-user-sign-day"></span>" <span id="pdf-user-sign-month"></span> <span id="pdf-user-sign-year"></span> г.</p>
+	            </div>
+	        </div>
+	        </div>
+        <script src="/questions_data.js"></script>
+        <script>
+            const {jsPDF} = window.jspdf;
+
+            class PersonalDataTestApp {
+                // ========== НАЧАЛО: НОВЫЙ МЕТОД ==========
+                /**
+                 * Обрабатывает событие попытки печати во время теста.
+                 * Увеличивает счетчик попыток и отправляет лог на сервер.
+                 */
+				API_KEY = '230cb277febca9271ac25eab9ac1a83fef0b8446a3ef0f709c36f8ec2fa2130f';
+                handleBeforePrint() {
+                    this.printAttempts++;
+                    this.logEventToServer('print_attempt', {
+                        question: this.currentQuestionIndex + 1
+                    });
+                }
+                // ========== КОНЕЦ: НОВОГО МЕТОДА ==========
+				updateProctorEye(event) {
+					if (!this.proctorEyeElement || this.proctorEyeElement.classList.contains('hidden') || this.isSaccadeInProgress) return;
+					
+
+					const pupil = this.proctorEyeElement.querySelector('.pupil');
+					const eyeball = this.proctorEyeElement.querySelector('.eyeball');
+					const rect = eyeball.getBoundingClientRect();
+
+					const eyeCenterX = rect.left + rect.width / 2;
+					const eyeCenterY = rect.top + rect.height / 2;
+					
+					const deltaX = event.clientX - eyeCenterX;
+					const deltaY = event.clientY - eyeCenterY;
+					
+					const angle = Math.atan2(deltaY, deltaX);
+					
+					// Max distance the pupil can travel from the center
+					const radiusX = (eyeball.offsetWidth - pupil.offsetWidth) / 2.5;
+					const radiusY = (eyeball.offsetHeight - pupil.offsetHeight) / 2.5;
+					
+					// Calculate how far the mouse is from the eye's center (capped at a max distance)
+					const maxMouseDistance = 300; // The distance at which the pupil reaches the edge
+					const mouseDistance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), maxMouseDistance);
+					
+					// The pupil's travel distance is proportional to the mouse's distance
+					const pupilTravelX = Math.cos(angle) * radiusX * (mouseDistance / maxMouseDistance);
+					const pupilTravelY = Math.sin(angle) * radiusY * (mouseDistance / maxMouseDistance);
+
+					pupil.style.transform = `translate(${pupilTravelX}px, ${pupilTravelY}px)`;
+				}
+				triggerEyeBlink() {
+					if (!this.proctorEyeElement) return;
+					const eyeball = this.proctorEyeElement.querySelector('.eyeball');
+					if (eyeball) {
+						eyeball.classList.add('blinking');
+						// Remove the class after the animation finishes so it can blink again
+						setTimeout(() => {
+							eyeball.classList.remove('blinking');
+						}, 300); // Duration should match the animation duration in CSS
+					}
+				}				
+				triggerEyeSaccade() {
+					if (!this.proctorEyeElement || this.isSaccadeInProgress) return;
+					
+					this.isSaccadeInProgress = true;
+					const pupil = this.proctorEyeElement.querySelector('.pupil');
+					if (!pupil) return;
+
+					const eyeball = this.proctorEyeElement.querySelector('.eyeball');
+					const rect = eyeball.getBoundingClientRect();
+					const radiusX = (rect.width - pupil.offsetWidth) / 2.5;
+					const radiusY = (rect.height - pupil.offsetHeight) / 2.5;
+
+					// Случайный угол для "взгляда в сторону"
+					const randomAngle = Math.random() * 2 * Math.PI;
+					const saccadeX = Math.cos(randomAngle) * radiusX;
+					const saccadeY = Math.sin(randomAngle) * radiusY;
+
+					pupil.style.transform = `translate(${saccadeX}px, ${saccadeY}px)`;
+
+					// Возвращаем зрачок к отслеживанию курсора через короткое время
+					setTimeout(() => {
+						this.isSaccadeInProgress = false;
+					}, 150);
+				}				
+                generateUUID() {
+                    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                        return crypto.randomUUID();
+                    }
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                        var r = Math.random() * 16 | 0
+                          , v = c == 'x' ? r : (r & 0x3 | 0x8);
+                        return v.toString(16);
+                    });
+                }
+                async logEventToServer(eventType, details={}) {
+                    const payload = {
+                        sessionId: this.sessionId,
+                        eventType: eventType,
+                        eventTimestamp: new Date().toISOString(),
+                        details: details
+                    };
+                    try {
+                        await fetch('/api/log_event', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': this.API_KEY
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                    } catch (error) {
+                        console.error(`Failed to log event ${eventType}:`, error);
+                    }
+                }
+                constructor() {
+                    this.currentQuestions = [];
+                    this.currentQuestionIndex = 0;
+                    this.userAnswers = [];
+                    this.userInfo = {};
+                    this.testStartTime = null;
+                    this.testEndTime = null;
+                    this.results = null;
+                    this.incorrectlyAnsweredQuestions = [];
+                    this.questionBank = this.decodeQuestionBank(typeof var_encodedQuestionData !== 'undefined' ? var_encodedQuestionData : '');
+
+                    // --- NEW: Security and Mock DB ---
+                    this.overridePassword = 'QmFzZTExNw=='; 
+                    // Master password
+                    this.mockUserDatabase = [];
+                    // Mock database for certified users
+                    this.loadMockDatabase();
+
+                    // --- NEW: Behavioral Metrics Properties ---
+                    this.perQuestionMetrics = [];
+                    this.keyboardDynamics = {
+                        lastName: [],
+                        firstName: [],
+                        middleName: []
+                    };
+                    this.keyPressState = {};
+                    // To track key hold times
+
+                    // Session metrics
+                    this.sessionFocusLossCount = 0;
+                    this.sessionTotalBlurTime = 0;
+                    this.lastBlurTimestamp = null;
+
+                    // Bound event handlers for easy add/remove
+                    this.boundMouseMoveHandler = null;
+                    this.sessionId = this.generateUUID();
+
+                    /* ========== НАЧАЛО: Обновленный блок ========== */
+                    this.printAttempts = 0;
+                    this.boundKeyUpHandler = this.handleKeyUpForPrintScreen.bind(this);
+                    // Привязываем обработчик печати здесь, чтобы его можно было удалить
+                    this.boundBeforePrintHandler = this.handleBeforePrint.bind(this);
+                    /* ========== КОНЕЦ: Обновленный блок ========== */
+					this.boundEyeMoveHandler = null; 
+					this.proctorEyeElement = document.getElementById('proctor-eye');	
+					this.blinkInterval = null;
+					this.saccadeInterval = null;
+					this.isSaccadeInProgress = false;					
+
+                    this.initializeEventListeners();
+                    this.setupPersistentId();
+                    this.showScreen('start');
+                }
+
+                // --- NEW: Load/Save Mock DB from/to localStorage ---
+                loadMockDatabase() {
+                    try {
+                        const db = localStorage.getItem('pd152_mock_db');
+                        if (db) {
+                            this.mockUserDatabase = JSON.parse(db);
+                        }
+                    } catch (e) {
+                        console.error("Failed to load mock database from localStorage", e);
+                        this.mockUserDatabase = [];
+                    }
+                }
+
+                saveMockDatabase() {
+                    try {
+                        localStorage.setItem('pd152_mock_db', JSON.stringify(this.mockUserDatabase));
+                    } catch (e) {
+                        console.error("Failed to save mock database to localStorage", e);
+                    }
+                }
+
+                // --- Block for Identifiers and Metrics ---
+
+                setCookie(name, value, days) {
+                    let expires = "";
+                    if (days) {
+                        const date = new Date();
+                        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                        expires = "; expires=" + date.toUTCString();
+                    }
+                    document.cookie = name + "=" + (value || "") + expires + "; path=/; max-age=" + (days * 24 * 60 * 60) + "; SameSite=Lax";
+                }
+
+                getCookie(name) {
+                    const nameEQ = name + "=";
+                    const ca = document.cookie.split(';');
+                    for (let i = 0; i < ca.length; i++) {
+                        let c = ca[i];
+                        while (c.charAt(0) === ' ')
+                            c = c.substring(1, c.length);
+                        if (c.indexOf(nameEQ) === 0)
+                            return c.substring(nameEQ.length, c.length);
+                    }
+                    return null;
+                }
+
+                // --- ИСПРАВЛЕНО: Добавлен полифил для crypto.randomUUID ---
+                setupPersistentId() {
+                    const COOKIE_NAME = 'persistentUserId_pd152';
+                    const LS_NAME = 'lastTesterId_pd152';
+
+                    const generateUUID = () => {
+                        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                            return crypto.randomUUID();
+                        }
+                        // Простой фолбэк для сред, где crypto.randomUUID недоступен (например, не-HTTPS)
+                        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                            var r = Math.random() * 16 | 0
+                              , v = c == 'x' ? r : (r & 0x3 | 0x8);
+                            return v.toString(16);
+                        });
+                    }
+                    ;
+
+                    let userId = this.getCookie(COOKIE_NAME);
+                    if (!userId) {
+                        try {
+                            userId = localStorage.getItem(LS_NAME);
+                            if (userId)
+                                this.setCookie(COOKIE_NAME, userId, 365);
+                            // Восстанавливаем куки из LS
+                        } catch (e) {
+                            console.warn("localStorage is not available.");
+                        }
+                    }
+
+                    if (!userId) {
+                        userId = generateUUID();
+                        // Используем новую надежную функцию
+                    }
+
+                    try {
+                        localStorage.setItem(LS_NAME, userId);
+                    } catch (e) {
+                        console.warn("localStorage is not available.");
+                    }
+
+                    this.setCookie(COOKIE_NAME, userId, 365);
+                    this.persistentId = userId;
+                }
+
+                // --- ИСПРАВЛЕНО: Добавлена проверка на доступность crypto.subtle ---
+                async sha256(str) {
+                    if (typeof crypto === 'undefined' || !crypto.subtle || !crypto.subtle.digest) {
+                        console.warn("Web Crypto API (crypto.subtle.digest) is not available. Using a simple fallback hash. Serve the page over HTTPS for full functionality.");
+                        // Простой, некриптографический хэш как фолбэк
+                        let hash = 0;
+                        for (let i = 0; i < str.length; i++) {
+                            const char = str.charCodeAt(i);
+                            hash = ((hash << 5) - hash) + char;
+                            hash |= 0;
+                            // Convert to 32bit integer
+                        }
+                        return 'fallback_' + Math.abs(hash).toString(16);
+                    }
+                    const textBuffer = new TextEncoder().encode(str);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', textBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+
+                // --- НОВЫЙ БЛОК FINGERPRINTING ---
+
+                async generateDeviceFingerprint() {
+                    const fp = {
+                        heavy: {},
+                        privacySafe: {}
+                    };
+                    fp.privacySafe.userAgent = navigator.userAgent || 'N/A';
+                    fp.privacySafe.platform = navigator.platform || 'N/A';
+                    fp.privacySafe.hardwareConcurrency = navigator.hardwareConcurrency || 'N/A';
+                    fp.heavy.deviceMemory = navigator.deviceMemory || 'N/A';
+                    fp.heavy.maxTouchPoints = navigator.maxTouchPoints || 0;
+                    fp.heavy.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'N/A';
+                    try {
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        fp.heavy.mediaDevicesCount = devices.length;
+                        fp.heavy.mediaDevicesList = devices.map(d => ({
+                            deviceId: d.deviceId.substring(0, 8),
+                            kind: d.kind,
+                            label: d.label ? d.label.substring(0, 10) : ''
+                        }));
+                    } catch (e) {
+                        fp.heavy.mediaDevicesCount = -1;
+                        fp.heavy.mediaDevicesList = [];
+                    }
+                    try {
+                        const gl = document.createElement('canvas').getContext('webgl');
+                        if (gl) {
+                            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                            if (debugInfo) {
+                                fp.privacySafe.webGLVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                                fp.privacySafe.webGLRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                            } else {
+                                fp.privacySafe.webGLVendor = 'N/A';
+                                fp.privacySafe.webGLRenderer = 'N/A';
+                            }
+                        } else {
+                            fp.privacySafe.webGLVendor = 'Not supported';
+                            fp.privacySafe.webGLRenderer = 'Not supported';
+                        }
+                    } catch (e) {
+                        fp.privacySafe.webGLVendor = 'Error';
+                        fp.privacySafe.webGLRenderer = 'Error';
+                    }
+                    try {
+                        const audioContext = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1,44100,44100);
+                        const oscillator = audioContext.createOscillator();
+                        oscillator.type = "triangle";
+                        oscillator.frequency.value = 10000;
+                        const compressor = audioContext.createDynamicsCompressor();
+                        oscillator.connect(compressor);
+                        compressor.connect(audioContext.destination);
+                        oscillator.start(0);
+                        const audioBuffer = await audioContext.startRendering();
+                        const channelData = audioBuffer.getChannelData(0);
+                        let sumOfSquares = 0;
+                        for (let i = 0; i < channelData.length; i++) {
+                            sumOfSquares += channelData[i] * channelData[i];
+                        }
+                        fp.heavy.audioRMS = Math.sqrt(sumOfSquares / channelData.length);
+                    } catch (e) {
+                        fp.heavy.audioRMS = -1;
+                    }
+                    fp.heavy.fonts = this.getAvailableFonts();
+                    const privacySafeString = Object.values(fp.privacySafe).join('|');
+                    fp.privacySafeHash = await this.sha256(privacySafeString);
+                    return fp;
+                }
+
+                getAvailableFonts() {
+                    const baseFonts = ["monospace", "sans-serif", "serif"];
+                    const testString = "mmmmmmmmmmlli";
+                    const testSize = "72px";
+                    const h = document.getElementsByTagName("body")[0];
+                    const s = document.createElement("span");
+                    s.style.fontSize = testSize;
+                    s.innerHTML = testString;
+                    const defaultWidth = {};
+                    const defaultHeight = {};
+                    for (const font of baseFonts) {
+                        s.style.fontFamily = font;
+                        h.appendChild(s);
+                        defaultWidth[font] = s.offsetWidth;
+                        defaultHeight[font] = s.offsetHeight;
+                        h.removeChild(s);
+                    }
+                    const fontList = ["Arial", "Verdana", "Helvetica", "Times New Roman", "Courier New", "Georgia", "Comic Sans MS", "Consolas", "Impact", "Calibri", "Segoe UI"];
+                    const availableFonts = fontList.filter(font => {
+                        let detected = false;
+                        for (const baseFont of baseFonts) {
+                            s.style.fontFamily = font + ',' + baseFont;
+                            h.appendChild(s);
+                            const matched = (s.offsetWidth !== defaultWidth[baseFont] || s.offsetHeight !== defaultHeight[baseFont]);
+                            h.removeChild(s);
+                            detected = detected || matched;
+                        }
+                        return detected;
+                    }
+                    );
+                    return availableFonts;
+                }
+
+                // --- БЛОК СБОРА ПОВЕДЕНЧЕСКИХ МЕТРИК ---
+
+                resetPerQuestionMetrics() {
+                    return {
+                        startTime: Date.now(),
+                        latency: 0,
+                        answerChanges: 0,
+                        focusLoss: 0,
+                        blurTime: 0,
+                        mouseMovements: []
+                    };
+                }
+
+                stopAndSavePerQuestionMetrics() {
+                    const currentMetrics = this.perQuestionMetrics[this.currentQuestionIndex];
+                    if (!currentMetrics || currentMetrics.latency > 0)
+                        return;
+                    // Не сохранять, если уже сохранено
+
+                    currentMetrics.latency = Date.now() - currentMetrics.startTime;
+
+                    // Удаляем обработчик движения мыши для завершенного вопроса
+                    if (this.boundMouseMoveHandler) {
+                        const testScreen = document.getElementById('test-screen');
+                        testScreen.removeEventListener('mousemove', this.boundMouseMoveHandler);
+                        this.boundMouseMoveHandler = null;
+                    }
+                }
+
+                initializeKeyboardListeners() {
+                    const fields = ['lastName', 'firstName', 'middleName'];
+                    fields.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.addEventListener('keydown', (e) => this.handleKeyDown(e, id));
+                            element.addEventListener('keyup', (e) => this.handleKeyUp(e, id));
+                        }
+                    }
+                    );
+                }
+
+                handleKeyDown(e, fieldId) {
+                    if (!this.keyPressState[e.code]) {
+                        this.keyPressState[e.code] = {
+                            downTime: Date.now()
+                        };
+                    }
+                }
+
+                handleKeyUp(e, fieldId) {
+                    if (this.keyPressState[e.code]) {
+                        const upTime = Date.now();
+                        const {downTime} = this.keyPressState[e.code];
+                        const holdTime = upTime - downTime;
+                        this.keyboardDynamics[fieldId].push({
+                            key: e.key,
+                            code: e.code,
+                            downTime,
+                            upTime,
+                            holdTime
+                        });
+                        delete this.keyPressState[e.code];
+                    }
+                }
+
+                // --- БЛОК ОСНОВНОЙ ЛОГИКИ ТЕСТА ---
+
+                decodeQuestionBank(encodedData) {
+                    if (!encodedData) {
+                        console.error("Данные вопросов отсутствуют.");
+                        return [];
+                    }
+                    try {
+                        const jsonString = decodeURIComponent(Array.prototype.map.call(atob(encodedData), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                        return JSON.parse(jsonString);
+                    } catch (e) {
+                        console.error("Ошибка декодирования банка вопросов:", e);
+                        this.showCustomAlert("Ошибка загрузки или декодирования вопросов. Пожалуйста, проверьте файл questions_data.js и правильность кодирования данных.");
+                        return [];
+                    }
+                }
+
+                // --- NEW: Password Prompt Modal ---
+                showPasswordPrompt(reason) {
+                    return new Promise( (resolve) => {
+                        const existingModal = document.getElementById('customPasswordModal');
+                        if (existingModal)
+                            existingModal.remove();
+
+                        const modalOverlay = document.createElement('div');
+                        modalOverlay.id = 'customPasswordModal';
+                        Object.assign(modalOverlay.style, {
+                            position: 'fixed',
+                            left: '0',
+                            top: '0',
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: '10001'
+                        });
+
+                        const modalContent = document.createElement('div');
+                        Object.assign(modalContent.style, {
+                            backgroundColor: 'var(--color-surface)',
+                            color: 'var(--color-text)',
+                            padding: '24px',
+                            borderRadius: 'var(--radius-md)',
+                            textAlign: 'center',
+                            boxShadow: 'var(--shadow-lg)',
+                            minWidth: '320px',
+                            maxWidth: '90%'
+                        });
+
+                        const title = document.createElement('h3');
+                        title.textContent = 'Доступ ограничен';
+                        Object.assign(title.style, {
+                            marginBottom: '8px',
+                            color: 'var(--color-warning)'
+                        });
+
+                        const reasonPara = document.createElement('p');
+                        reasonPara.textContent = reason;
+                        Object.assign(reasonPara.style, {
+                            marginBottom: '16px',
+                            fontSize: 'var(--font-size-base)',
+                            color: 'var(--color-text-secondary)'
+                        });
+
+                        const instructionPara = document.createElement('p');
+                        instructionPara.textContent = 'Для продолжения введите код-пароль:';
+                        Object.assign(instructionPara.style, {
+                            marginBottom: '16px',
+                            fontSize: 'var(--font-size-base)'
+                        });
+
+                        const passwordInput = document.createElement('input');
+                        passwordInput.type = 'password';
+                        passwordInput.className = 'form-control';
+                        Object.assign(passwordInput.style, {
+                            marginBottom: '20px',
+                            textAlign: 'center'
+                        });
+
+                        const buttonContainer = document.createElement('div');
+                        Object.assign(buttonContainer.style, {
+                            display: 'flex',
+                            gap: 'var(--space-16)',
+                            justifyContent: 'center'
+                        });
+
+                        const submitButton = document.createElement('button');
+                        submitButton.textContent = 'Подтвердить';
+                        submitButton.className = 'btn btn--primary';
+
+                        const cancelButton = document.createElement('button');
+                        cancelButton.textContent = 'Отмена';
+                        cancelButton.className = 'btn btn--secondary';
+
+                        const closeModal = (result) => {
+                            if (document.body.contains(modalOverlay))
+                                document.body.removeChild(modalOverlay);
+                            resolve(result);
+                        }
+                        ;
+
+						submitButton.onclick = () => {
+						    try {
+						        if (passwordInput.value === atob(this.overridePassword)) {
+						            closeModal(true);
+						        } else {
+						            this.showCustomAlert('Неверный код-пароль.');
+						            passwordInput.value = '';
+						            passwordInput.focus();
+						            // closeModal(false) - эта строка здесь, вероятно, не нужна
+						        }
+						    } catch (e) {
+						        console.error("Ошибка при декодировании или проверке пароля:", e);
+						        this.showCustomAlert('Произошла внутренняя ошибка. Обратитесь к администратору.');
+						    }
+						};
+
+
+                        cancelButton.onclick = () => closeModal(false);
+
+                        passwordInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                submitButton.click();
+                            }
+                        }
+                        );
+
+                        buttonContainer.append(cancelButton, submitButton);
+                        modalContent.append(title, reasonPara, instructionPara, passwordInput, buttonContainer);
+                        modalOverlay.appendChild(modalContent);
+                        document.body.appendChild(modalOverlay);
+                        passwordInput.focus();
+                    }
+                    );
+                }
+
+                async showCustomConfirm(message) {
+                    return new Promise( (resolve) => {
+                        const existingModal = document.getElementById('customConfirmModal');
+                        if (existingModal)
+                            existingModal.remove();
+
+                        const modalOverlay = document.createElement('div');
+                        modalOverlay.id = 'customConfirmModal';
+                        Object.assign(modalOverlay.style, {
+                            position: 'fixed',
+                            left: '0',
+                            top: '0',
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: '10001'
+                        });
+
+                        const modalContent = document.createElement('div');
+                        Object.assign(modalContent.style, {
+                            backgroundColor: 'var(--color-surface)',
+                            color: 'var(--color-text)',
+                            padding: '20px 30px',
+                            borderRadius: 'var(--radius-md)',
+                            textAlign: 'center',
+                            boxShadow: 'var(--shadow-lg)',
+                            minWidth: '300px',
+                            maxWidth: '90%'
+                        });
+
+                        const messagePara = document.createElement('p');
+                        messagePara.textContent = message;
+                        Object.assign(messagePara.style, {
+                            marginBottom: '20px',
+                            fontSize: 'var(--font-size-lg)'
+                        });
+
+                        const buttonContainer = document.createElement('div');
+                        Object.assign(buttonContainer.style, {
+                            display: 'flex',
+                            gap: 'var(--space-16)',
+                            justifyContent: 'center'
+                        });
+
+                        const confirmButton = document.createElement('button');
+                        confirmButton.textContent = 'Завершить';
+                        confirmButton.className = 'btn btn--primary';
+                        confirmButton.onclick = () => {
+                            if (document.body.contains(modalOverlay))
+                                document.body.removeChild(modalOverlay);
+                            resolve(true);
+                        }
+                        ;
+                        const cancelButton = document.createElement('button');
+                        cancelButton.textContent = 'Отмена';
+                        cancelButton.className = 'btn btn--secondary';
+                        cancelButton.onclick = () => {
+                            if (document.body.contains(modalOverlay))
+                                document.body.removeChild(modalOverlay);
+                            resolve(false);
+                        }
+                        ;
+                        buttonContainer.append(cancelButton, confirmButton);
+                        modalContent.append(messagePara, buttonContainer);
+                        modalOverlay.appendChild(modalContent);
+                        document.body.appendChild(modalOverlay);
+                        confirmButton.focus();
+                    }
+                    );
+                }
+
+                showCustomAlert(message, isSuccess=false) {
+                    const existingModal = document.getElementById('customAlertModal');
+                    if (existingModal)
+                        existingModal.remove();
+
+                    // Build the entire modal structure in memory first
+                    const modalOverlay = document.createElement('div');
+                    modalOverlay.id = 'customAlertModal';
+                    Object.assign(modalOverlay.style, {
+                        position: 'fixed',
+                        left: '0',
+                        top: '0',
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: '10002'
+                    });
+                    // Higher z-index than password prompt
+                    const modalContent = document.createElement('div');
+                    Object.assign(modalContent.style, {
+                        backgroundColor: 'var(--color-surface)',
+                        color: 'var(--color-text)',
+                        padding: '20px 30px',
+                        borderRadius: 'var(--radius-md)',
+                        textAlign: 'center',
+                        boxShadow: 'var(--shadow-lg)',
+                        minWidth: '300px',
+                        maxWidth: '90%'
+                    });
+
+                    const messagePara = document.createElement('p');
+                    messagePara.textContent = message;
+                    Object.assign(messagePara.style, {
+                        marginBottom: '20px',
+                        fontSize: 'var(--font-size-lg)'
+                    });
+
+                    const okButton = document.createElement('button');
+                    okButton.textContent = 'OK';
+                    okButton.className = 'btn';
+                    okButton.classList.add(isSuccess ? 'btn--primary' : 'btn--secondary');
+                    okButton.onclick = () => {
+                        if (document.body.contains(modalOverlay))
+                            document.body.removeChild(modalOverlay);
+                    }
+                    ;
+
+                    // Append children to their parents
+                    modalContent.append(messagePara, okButton);
+                    modalOverlay.appendChild(modalContent);
+
+                    // Append the fully constructed modal to the body as the last step
+                    document.body.appendChild(modalOverlay);
+                    okButton.focus();
+                }
+
+                initializeEventListeners() {
+                    const form = document.getElementById('user-form');
+                    form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.startTest();
+                    }
+                    );
+                    
+                    // ========== START: ADDED BLOCK FOR PRE-FILLING FORM ==========
+                    try {
+                        const savedInfo = localStorage.getItem('lastUserInfo');
+                        if (savedInfo) {
+                            const userInfo = JSON.parse(savedInfo);
+                            document.getElementById('lastName').value = userInfo.lastName || '';
+                            document.getElementById('firstName').value = userInfo.firstName || '';
+                            document.getElementById('middleName').value = userInfo.middleName || '';
+                            document.getElementById('position').value = userInfo.position || '';
+                        }
+                    } catch (e) {
+                        console.warn('Could not read or parse user info from localStorage.');
+                    }
+                    // ========== END: ADDED BLOCK FOR PRE-FILLING FORM ==========
+
+                    const testScreen = document.getElementById('test-screen');
+                    document.getElementById('prev-btn').addEventListener('click', () => this.goToPreviousQuestion());
+                    document.getElementById('next-btn').addEventListener('click', () => this.goToNextQuestion());
+                    document.getElementById('finish-btn').addEventListener('click', () => this.finishTest());
+                    document.getElementById('print-btn').addEventListener('click', () => {
+                        document.body.classList.remove('printing-specific-report');
+                        window.print();
+                    }
+                    );
+                    document.getElementById('download-pdf-official-btn').addEventListener('click', () => this.triggerOfficialPDFProcess(false));
+                    document.getElementById('print-error-report-btn').addEventListener('click', () => this.printErrorReport(false));
+                    document.getElementById('new-test-btn').addEventListener('click', () => this.resetTest());
+
+                    // --- НОВОЕ: Отдельный вызов для инициализации клавиатурных слушателей ---
+                    this.initializeKeyboardListeners();
+
+                    // Блокировка копирования и контекстного меню
+                    testScreen.addEventListener('contextmenu', e => e.preventDefault());
+                    testScreen.addEventListener('copy', e => e.preventDefault());
+                    window.addEventListener('blur', () => {
+                        if (this.getCurrentScreen() === 'test') {
+                            this.sessionFocusLossCount++;
+							if (this.proctorEyeElement) this.proctorEyeElement.classList.add('warning');
+
+                            if (this.perQuestionMetrics[this.currentQuestionIndex]) {
+                                this.perQuestionMetrics[this.currentQuestionIndex].focusLoss++;
+                            }
+                            this.lastBlurTimestamp = Date.now();
+                            // ========== НАЧАЛО: НОВЫЙ КОД ==========
+                            this.logEventToServer('focus_loss', {
+                                question: this.currentQuestionIndex + 1
+                            });
+                            // ========== КОНЕЦ: НОВЫЙ КОД ==========
+                        }
+                    }
+                    );
+                    window.addEventListener('focus', () => {
+                        if (this.getCurrentScreen() === 'test' && this.lastBlurTimestamp) {
+                            const blurDuration = (Date.now() - this.lastBlurTimestamp) / 1000;
+                            this.sessionTotalBlurTime += blurDuration;
+							setTimeout(() => {
+								this.proctorEyeElement.classList.remove('warning');
+							}, 5000);
+                            if (this.perQuestionMetrics[this.currentQuestionIndex]) {
+                                this.perQuestionMetrics[this.currentQuestionIndex].blurTime += blurDuration;
+                            }
+                            this.lastBlurTimestamp = null;
+                        }
+                    }
+                    );
+                    window.addEventListener('beforeunload', (e) => {
+                        if (this.getCurrentScreen() === 'test') {
+                            e.preventDefault();
+                            e.returnValue = 'Тест не завершен. Вы уверены, что хотите покинуть страницу?';
+                        }
+                    }
+                    );
+                }
+
+                showScreen(screenId) {
+                    document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+                    document.getElementById(`${screenId}-screen`).classList.add('active');
+                }
+
+                getCurrentScreen() {
+                    const activeScreen = document.querySelector('.screen.active');
+                    return activeScreen ? activeScreen.id.replace('-screen', '') : null;
+                }
+
+                async startTest() {
+                    const lastName = document.getElementById('lastName').value.trim();
+                    const firstName = document.getElementById('firstName').value.trim();
+                    const position = document.getElementById('position').value.trim();
+                    if (!lastName || !firstName || !position) {
+                        this.showCustomAlert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя и Должность)');
+                        return;
+                    }
+
+                    // --- NEW: Security Checks ---
+                    const fullName = `${lastName} ${firstName} ${document.getElementById('middleName').value.trim()}`.trim().toLowerCase();
+
+                    // 1. Super-cookie check
+                    const deviceHasPassed = localStorage.getItem('pd152_test_passed_on_this_device') === 'true';
+                    if (deviceHasPassed) {
+                        const hasAccess = await this.showPasswordPrompt('С этого устройства уже был успешно пройден тест.');
+                        if (!hasAccess)
+                            return;
+                    }
+
+                    // 2. Mock Database check
+                    const userHasCertificate = this.mockUserDatabase.some(user => user.fullName === fullName && user.hasCertificate);
+                    if (userHasCertificate) {
+                        const hasAccess = await this.showPasswordPrompt('Пользователь с таким ФИО уже имеет сертификат.');
+                        if (!hasAccess)
+                            return;
+                    }
+                    // --- End of Security Checks ---
+
+                    // Proceed with test if checks are passed
+                    this.userInfo = {
+                        lastName,
+                        firstName,
+                        middleName: document.getElementById('middleName').value.trim(),
+                        position: document.getElementById('position').value.trim()
+                    };
+					try { localStorage.setItem('lastUserInfo', JSON.stringify(this.userInfo)); } catch (e) { console.warn('Could not save userInfo to localStorage.'); }
+
+
+                    // ========== НАЧАЛО: ИЗМЕНЕНИЯ В STARTTEST ==========
+                    // Логируем начало теста немедленно
+                    await this.logEventToServer('test_started', {
+                        userInfo: this.userInfo
+                    });
+
+                    // Активируем водяной знак
+                    const watermark = document.getElementById('watermark');
+                    const now = new Date();
+                    watermark.innerText = `${this.userInfo.lastName} ${this.userInfo.firstName}\n${this.sessionId.slice(0, 8)}\n${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+                    watermark.classList.remove('hidden');
+                    // ========== КОНЕЦ: ИЗМЕНЕНИЯ В STARTTEST ==========				
+
+                    this.generateQuestions();
+                    this.userAnswers = new Array(this.currentQuestions.length).fill(null);
+                    // --- НОВОЕ: Инициализация массива метрик для каждого вопроса ---
+                    this.perQuestionMetrics = this.currentQuestions.map( () => this.resetPerQuestionMetrics());
+                    this.incorrectlyAnsweredQuestions = [];
+                    this.currentQuestionIndex = 0;
+
+                    // Сброс и запуск метрик сессии
+                    this.testStartTime = new Date().toISOString();
+                    this.sessionFocusLossCount = 0;
+                    this.sessionTotalBlurTime = 0;
+
+                    /* ========== НАЧАЛО: ИСПРАВЛЕННЫЙ БЛОК ========== */
+                    this.printAttempts = 0;
+                    document.body.classList.add('test-in-progress');
+                    // Используем привязанный обработчик, чтобы его можно было удалить
+                    window.addEventListener('beforeprint', this.boundBeforePrintHandler);
+                    window.addEventListener('keyup', this.boundKeyUpHandler);
+                    /* ========== КОНЕЦ: ИСПРАВЛЕННЫЙ БЛОК ========== */
+
+					// ========== НАЧАЛО ИЗМЕНЕНИЯ ==========
+					// Активируем следящий глаз
+					if (this.proctorEyeElement) {
+						this.proctorEyeElement.classList.remove('hidden');
+						this.boundEyeMoveHandler = this.updateProctorEye.bind(this);
+						document.addEventListener('mousemove', this.boundEyeMoveHandler);
+						// Запускаем случайные моргания (раз в 4-9 секунд)
+						this.blinkInterval = setInterval(() => {
+							this.triggerEyeBlink();
+						}, 8000 + Math.random() * 15000);
+
+						// Запускаем случайные движения (раз в 3-7 секунд)
+						this.saccadeInterval = setInterval(() => {
+							this.triggerEyeSaccade();
+						}, 3000 + Math.random() * 9000);
+						// --- КОНЕЦ НОВОГО БЛОКА ---
+					}
+					// ========== КОНЕЦ ИЗМЕНЕНИЯ ==========
+
+					this.showScreen('test');
+					this.updateUserInfo();
+					this.showQuestion();
+				}
+
+                /* ========== НАЧАЛО: Новая функция для отслеживания PrintScreen ========== */
+                handleKeyUpForPrintScreen(e) {
+                    if (e.keyCode === 44) {
+                        this.printAttempts++;
+                        // Логируем событие на сервер
+                        this.logEventToServer('screenshot_attempt', {
+                            question: this.currentQuestionIndex + 1
+                        });
+						// --- ДОБАВИТЬ НОВЫЙ БЛОК РЕАКЦИИ ---
+						if (this.proctorEyeElement) {
+							this.proctorEyeElement.classList.add('alert');
+							this.triggerEyeBlink(); // Мигаем при обнаружении
+							// Возвращаем обычный цвет через 2 секунды
+							setTimeout(() => {
+								this.proctorEyeElement.classList.remove('alert');
+							}, 10000);
+						}
+                        // Показываем вспышку, чтобы испортить скриншот
+                        const overlay = document.getElementById('flash-overlay');
+                        overlay.innerHTML = `Попытка ${this.printAttempts}:<br>Снятие скриншотов запрещено и зафиксировано.`;
+                        overlay.classList.remove('hidden');
+                        setTimeout( () => overlay.classList.add('hidden'), 2500);
+                        // Скрываем через 1.5 секунды
+                    }
+                }
+                /* ========== КОНЕЦ: Новая функция для отслеживания PrintScreen ========== */
+
+                generateQuestions() {
+                    let questionsToShuffle = [...this.questionBank];
+                    for (let i = questionsToShuffle.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [questionsToShuffle[i],questionsToShuffle[j]] = [questionsToShuffle[j], questionsToShuffle[i]];
+                    }
+                    this.currentQuestions = questionsToShuffle.slice(0, Math.min(25, questionsToShuffle.length));
+                }
+
+                updateUserInfo() {
+                    const userInfoElement = document.getElementById('user-info');
+                    let fullName = `${this.userInfo.lastName} ${this.userInfo.firstName} ${this.userInfo.middleName || ''}`.trim();
+                    if (this.userInfo.position)
+                        fullName += `, ${this.userInfo.position}`;
+                    userInfoElement.textContent = fullName;
+                }
+
+                showQuestion() {
+                    if (!this.currentQuestions || !this.currentQuestions[this.currentQuestionIndex]) {
+                        this.showCustomAlert("Ошибка: Вопросы для теста не найдены.");
+                        this.showScreen('start');
+                        return;
+                    }
+
+                    const question = this.currentQuestions[this.currentQuestionIndex];
+                    document.getElementById('current-question').textContent = this.currentQuestionIndex + 1;
+                    document.getElementById('total-questions').textContent = this.currentQuestions.length;
+                    document.getElementById('progress-fill').style.width = `${((this.currentQuestionIndex + 1) / this.currentQuestions.length) * 100}%`;
+                    document.getElementById('question-text').textContent = question.question;
+                    document.getElementById('question-type').textContent = question.type === 'multiple' ? 'Множественный выбор' : 'Верно/Неверно';
+
+                    this.renderAnswerOptions(question);
+                    this.updateNavigationButtons();
+
+                    // --- НОВОЕ: Запуск сбора метрик для текущего вопроса ---
+                    const testScreen = document.getElementById('test-screen');
+                    const currentMetrics = this.perQuestionMetrics[this.currentQuestionIndex];
+                    // Удаляем старый обработчик, если он есть
+                    if (this.boundMouseMoveHandler) {
+                        testScreen.removeEventListener('mousemove', this.boundMouseMoveHandler);
+                    }
+                    // Создаем и привязываем новый
+                    this.boundMouseMoveHandler = (e) => {
+                        currentMetrics.mouseMovements.push([e.clientX, e.clientY, Date.now()]);
+                    }
+                    ;
+                    testScreen.addEventListener('mousemove', this.boundMouseMoveHandler);
+                }
+
+                renderAnswerOptions(question) {
+                    const container = document.getElementById('answers-container');
+                    container.innerHTML = '';
+                    const renderOption = (value, text, labelChar, isChecked) => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'answer-option';
+                        if (isChecked)
+                            optionDiv.classList.add('selected');
+                        optionDiv.innerHTML = `<input type="radio" id="answer-${String(value).toLowerCase().replace(/[^a-z0-9]/gi, '')}" name="question-answer" value="${value}" ${isChecked ? 'checked' : ''}><span class="answer-label">${labelChar}.</span><span class="answer-text">${text}</span>`;
+                        optionDiv.addEventListener('click', () => this.selectAnswer(value));
+                        container.appendChild(optionDiv);
+                    }
+                    ;
+                    if (question.type === 'multiple') {
+                        question.answers.forEach( (answer, index) => renderOption(index, answer, String.fromCharCode(65 + index), this.userAnswers[this.currentQuestionIndex] === index));
+                    } else {
+                        renderOption(true, 'Верно', 'A', this.userAnswers[this.currentQuestionIndex] === true);
+                        renderOption(false, 'Неверно', 'B', this.userAnswers[this.currentQuestionIndex] === false);
+                    }
+                }
+
+                selectAnswer(answer) {
+					this.triggerEyeBlink();
+                    const prevAnswer = this.userAnswers[this.currentQuestionIndex];
+                    if (prevAnswer !== null && prevAnswer !== answer) {
+                        // --- НОВОЕ: Учет смены ответа ---
+                        this.perQuestionMetrics[this.currentQuestionIndex].answerChanges++;
+                    }
+                    this.userAnswers[this.currentQuestionIndex] = answer;
+                    // Перерисовываем опции, чтобы показать выбор
+                    this.renderAnswerOptions(this.currentQuestions[this.currentQuestionIndex]);
+                }
+
+                updateNavigationButtons() {
+                    const prevBtn = document.getElementById('prev-btn');
+                    const nextBtn = document.getElementById('next-btn');
+                    const finishBtn = document.getElementById('finish-btn');
+                    prevBtn.classList.toggle('hidden', this.currentQuestionIndex <= 0);
+                    if (this.currentQuestionIndex < this.currentQuestions.length - 1) {
+                        nextBtn.classList.remove('hidden');
+                        finishBtn.classList.add('hidden');
+                    } else {
+                        nextBtn.classList.add('hidden');
+                        finishBtn.classList.remove('hidden');
+                    }
+                }
+
+                goToPreviousQuestion() {
+                    if (this.currentQuestionIndex > 0) {
+                        this.stopAndSavePerQuestionMetrics();
+                        this.currentQuestionIndex--;
+                        this.showQuestion();
+                    }
+                }
+                goToNextQuestion() {
+                    if (this.currentQuestionIndex < this.currentQuestions.length - 1) {
+                        this.stopAndSavePerQuestionMetrics();
+                        this.currentQuestionIndex++;
+                        this.showQuestion();
+                    }
+                }
+
+                async finishTest() {
+                    // ========== НАЧАЛО: ИСПРАВЛЕННЫЙ И ПЕРЕМЕЩЕННЫЙ БЛОК ОЧИСТКИ ==========
+                    // Немедленно отключаем все слушатели прокторинга, чтобы избежать ложных срабатываний.
+                    document.body.classList.remove('test-in-progress');
+                    window.removeEventListener('beforeprint', this.boundBeforePrintHandler);
+                    window.removeEventListener('keyup', this.boundKeyUpHandler);
+                    
+                    // Немедленно скрываем элементы прокторинга
+					if (this.proctorEyeElement) {
+						this.proctorEyeElement.classList.add('hidden');
+						if (this.boundEyeMoveHandler) {
+							document.removeEventListener('mousemove', this.boundEyeMoveHandler);
+							this.boundEyeMoveHandler = null;
+						}
+						clearInterval(this.blinkInterval);
+						clearInterval(this.saccadeInterval);
+					}
+                    const watermark = document.getElementById('watermark');
+                    if(watermark) watermark.classList.add('hidden');
+                    // ========== КОНЕЦ: ИСПРАВЛЕННОГО БЛОКА ОЧИСТКИ ==========
+
+                    const unanswered = this.userAnswers.filter(a => a === null).length;
+                    if (unanswered > 0) {
+                        const confirmed = await this.showCustomConfirm(`У вас ${unanswered} неотвеченных вопросов. Завершить тест?`);
+                        if (!confirmed) {
+                            // Если пользователь отменил, ВОЗВРАЩАЕМ слушатели и элементы прокторинга
+                            document.body.classList.add('test-in-progress');
+                            window.addEventListener('beforeprint', this.boundBeforePrintHandler);
+                            window.addEventListener('keyup', this.boundKeyUpHandler);
+                            if (this.proctorEyeElement) this.proctorEyeElement.classList.remove('hidden');
+                            if (watermark) watermark.classList.remove('hidden');
+                        return;
+                        }
+                    }
+                    this.stopAndSavePerQuestionMetrics();
+                    this.testEndTime = new Date().toISOString();
+                    await this.logEventToServer('test_finished'); // Log finish event
+
+                    this.calculateResults();
+                    await this.showResults();
+                }
+
+                calculateResults() {
+                    let correct = 0;
+                    this.incorrectlyAnsweredQuestions = [];
+                    this.currentQuestions.forEach( (q, i) => {
+                        const userAnswer = this.userAnswers[i];
+                        let isCorrect = false;
+                        if (userAnswer !== null)
+                            isCorrect = (q.type === 'multiple') ? (userAnswer === q.correct) : (userAnswer === q.correct);
+                        if (isCorrect)
+                            correct++;
+                        else
+                            this.incorrectlyAnsweredQuestions.push({
+                                text: q.question,
+                                type: userAnswer === null ? 'Нет ответа' : 'Неверный ответ'
+                            });
+                    }
+                    );
+                    this.results = {
+                        totalQuestions: this.currentQuestions.length,
+                        correctAnswers: correct,
+                        incorrectAnswers: this.currentQuestions.length - correct,
+                        percentage: this.currentQuestions.length > 0 ? Math.round((correct / this.currentQuestions.length) * 100) : 0,
+                        incorrectQuestionsList: this.incorrectlyAnsweredQuestions,
+                    };
+                    this.results.grade = this.getGrade(this.results.percentage);
+                }
+
+                getGrade(p) {
+                    if (p >= 90)
+                        return {
+                            number: 5,
+                            text: 'Отлично',
+                            class: 'excellent'
+                        };
+                    if (p >= 80)
+                        return {
+                            number: 4,
+                            text: 'Хорошо',
+                            class: 'good'
+                        };
+                    if (p >= 70)
+                        return {
+                            number: 3,
+                            text: 'Удовлетворительно',
+                            class: 'satisfactory'
+                        };
+                    if (p >= 60)
+                        return {
+                            number: 2,
+                            text: 'Неудовлетворительно',
+                            class: 'unsatisfactory'
+                        };
+                    return {
+                        number: 2,
+                        text: 'Плохо',
+                        class: 'poor'
+                    };
+                }
+
+                async showResults() {
+                    this.showScreen('results');
+
+                    document.getElementById('score-percentage').textContent = this.results.percentage;
+                    document.getElementById('grade-text').textContent = this.results.grade.text;
+                    document.getElementById('grade-number').textContent = this.results.grade.number;
+                    document.getElementById('correct-answers').textContent = this.results.correctAnswers;
+                    document.getElementById('incorrect-answers').textContent = this.results.incorrectAnswers;
+
+                    const fullFingerprint = await this.generateDeviceFingerprint();
+
+                    const finalPerQuestionMetrics = this.perQuestionMetrics.map(m => {
+                        return {
+                            latency: m.latency,
+                            answerChanges: m.answerChanges,
+                            focusLoss: m.focusLoss,
+                            blurTime: parseFloat(m.blurTime.toFixed(1)),
+                            mouseMovements: m.mouseMovements
+                        };
+                    }
+                    );
+
+                    const payload = {
+                        testType: 'PD_152',
+                        // Unique identifier for this test
+                        userInfo: this.userInfo,
+                        testResults: this.results,
+                        sessionId: this.sessionId,
+                        // Уникальный ID именно этой сессии
+                        persistentId: {
+                            cookie: this.getCookie('persistentUserId_pd152') || 'N/A',
+                            localStorage: localStorage.getItem('lastTesterId_pd152') || 'N/A'
+                        },
+                        fingerprint: fullFingerprint,
+                        sessionMetrics: {
+							startTime: this.testStartTime || new Date().toISOString(), 
+							endTime: this.testEndTime || new Date().toISOString(),
+							totalFocusLoss: this.sessionFocusLossCount,
+							totalBlurTime: parseFloat(this.sessionTotalBlurTime.toFixed(1)),
+							printAttempts: this.printAttempts
+                        },
+                        behavioralMetrics: {
+                            perQuestion: finalPerQuestionMetrics,
+                            keyboard: this.keyboardDynamics,
+                        }
+                    };
+
+                    await this.sendResultsToServer(payload);
+
+                    // Управление видимостью кнопок
+                    const downloadPdfBtn = document.getElementById('download-pdf-official-btn');
+                    const newTestBtn = document.getElementById('new-test-btn');
+                    const printErrorBtn = document.getElementById('print-error-report-btn');
+
+                    downloadPdfBtn.classList.add('hidden');
+                    printErrorBtn.classList.add('hidden');
+
+                    if (this.results.percentage < 80) {
+                        newTestBtn.textContent = 'Пересдать тест';
+                        newTestBtn.classList.remove('btn--primary');
+                        newTestBtn.classList.add('btn--warning');
+                    } else {
+                        // --- UPDATED: Set flags on success with unique key ---
+                        localStorage.setItem('pd152_test_passed_on_this_device', 'true');
+                        const fullName = `${this.userInfo.lastName} ${this.userInfo.firstName} ${this.userInfo.middleName || ''}`.trim().toLowerCase();
+                        const existingUser = this.mockUserDatabase.find(u => u.fullName === fullName);
+                        if (!existingUser) {
+                            this.mockUserDatabase.push({
+                                fullName,
+                                hasCertificate: true
+                            });
+                        } else {
+                            existingUser.hasCertificate = true;
+                        }
+                        this.saveMockDatabase();
+
+                        downloadPdfBtn.classList.remove('hidden');
+                        newTestBtn.textContent = 'Новый тест';
+                        newTestBtn.classList.remove('btn--warning');
+                        newTestBtn.classList.add('btn--primary');
+                        // ИСПРАВЛЕНО: Добавлен вызов автоматического скачивания
+                        await this.triggerOfficialPDFProcess(true);
+                    }
+
+                    if (this.results.incorrectAnswers > 0) {
+                        printErrorBtn.classList.remove('hidden');
+                    }
+                }
+
+                async sendResultsToServer(data) {
+                    console.log("Отправляемые данные:", JSON.stringify(data, null, 2));
+                    // Для отладки
+                    const apiUrl = '/api/save_results';
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+								'X-API-Key': this.API_KEY
+                            },
+                            body: JSON.stringify(data)
+                        });
+                        if (response.ok) {
+                            const responseData = await response.json();
+                            console.log('Результаты успешно отправлены на сервер:', responseData);
+                            this.showCustomAlert('Результаты успешно отправлены!', true);
+                            if (responseData && responseData.officialDocumentNumber) {
+                                this.results.officialDocumentNumber = responseData.officialDocumentNumber;
+                            }
+                        } else {
+                            const errorText = await response.text();
+                            console.error('Ошибка сервера:', response.status, errorText);
+                            this.showCustomAlert(`Ошибка сервера (${response.status}) при отправке. ${errorText}`);
+                        }
+                    } catch (error) {
+                        console.error('Сетевая ошибка:', error);
+                        this.showCustomAlert('Сетевая ошибка. Проверьте подключение и API. Подробнее в консоли.');
+                    }
+                }
+
+                async waitForImagesToLoad(container) {
+                    const images = Array.from(container.querySelectorAll('img'));
+                    if (images.length === 0)
+                        return Promise.resolve();
+                    return Promise.all(images.map(img => new Promise(resolve => {
+                        if (img.complete)
+                            resolve();
+                        else {
+                            img.onload = img.onerror = resolve;
+                        }
+                    }
+                    )));
+                }
+
+                async triggerOfficialPDFProcess(autoPrintAfterDownload=false) {
+                    if (!this.results) {
+                        this.showCustomAlert("Результаты теста отсутствуют.");
+                        return;
+                    }
+                    const pdfFileName = await this.generateAndDownloadOfficialPDF();
+
+                    if (pdfFileName && autoPrintAfterDownload) {
+                        const blankContainer = document.getElementById('pdf-official-blank-container');
+                        if (!blankContainer) {
+                            console.error("triggerOfficialPDFProcess: blankContainer not found for printing.");
+                            return;
+                        }
+                        this.prepareElementForPrinting(blankContainer, true);
+
+                        setTimeout( () => {
+                         	/*window.print();*/
+                            this.restorePageAfterPrinting(blankContainer);
+                            this.showCustomAlert(`Официальный протокол "${pdfFileName}" загружен и отправлен на печать.`, true);
+                        }
+                        , 500);
+                    } else if (pdfFileName) {
+                        this.showCustomAlert(`Официальный протокол "${pdfFileName}" успешно загружен.`, true);
+                    }
+                }
+
+                prepareElementForPrinting(elementToPrint, isOfficialBlank=false) {
+                    document.body.classList.add('printing-specific-report');
+                    if (isOfficialBlank) {
+                        elementToPrint.classList.add('printing-official-blank');
+                    } else {
+                        elementToPrint.classList.add('printing-error-report');
+                    }
+                }
+
+                restorePageAfterPrinting(printedElement) {
+                    document.body.classList.remove('printing-specific-report');
+                    if (printedElement) {
+                        printedElement.classList.remove('printing-official-blank', 'printing-error-report');
+                    }
+                }
+
+                getErrorReportHTML() {
+                    if (!this.results)
+                        return document.createDocumentFragment();
+
+                    const r = this.results;
+                    const ui = this.userInfo;
+                    const fragment = document.createDocumentFragment();
+
+                    const createSection = (title, content) => {
+                        const sectionDiv = document.createElement('div');
+                        sectionDiv.className = 'print-section';
+                        if (title) {
+                            const h = document.createElement('h4');
+                            h.textContent = title;
+                            sectionDiv.appendChild(h);
+                        }
+                        content(sectionDiv);
+                        return sectionDiv;
+                    }
+                    ;
+
+                    const createP = (parent, strongText, normalText) => {
+                        const p = document.createElement('p');
+                        const strong = document.createElement('strong');
+                        strong.textContent = strongText;
+                        p.appendChild(strong);
+                        p.appendChild(document.createTextNode(' ' + normalText));
+                        parent.appendChild(p);
+                    }
+                    ;
+
+                    const endDate = this.testEndTime ? new Date(this.testEndTime) : new Date();
+                    const resultDate = endDate.toLocaleDateString('ru-RU');
+                    const resultTime = endDate.toLocaleTimeString('ru-RU');
+
+                    const headerSection = document.createElement('div');
+                    headerSection.className = 'print-section';
+                    headerSection.style.textAlign = 'center';
+                    const h2 = document.createElement('h2');
+                    h2.textContent = 'Отчет по результатам тестирования';
+                    const pSub = document.createElement('p');
+                    pSub.textContent = 'по 152-ФЗ "О персональных данных"';
+                    headerSection.append(h2, pSub);
+                    fragment.appendChild(headerSection);
+
+                    const userInfoSection = createSection('Информация о тестируемом', (section) => {
+                        let fullName = `${ui.lastName} ${ui.firstName} ${ui.middleName || ''}`.trim();
+                        createP(section, 'ФИО:', fullName);
+                        if (ui.position) {
+                            createP(section, 'Должность:', ui.position);
+                        }
+                        createP(section, 'Дата и время прохождения:', `${resultDate} ${resultTime}`);
+                    }
+                    );
+                    fragment.appendChild(userInfoSection);
+
+                    const resultsSection = createSection('Общий результат', (section) => {
+                        createP(section, 'Процент правильных ответов:', `${r.percentage}%`);
+                        createP(section, 'Оценка:', `${r.grade.text} (${r.grade.number})`);
+                        createP(section, 'Правильно:', `${r.correctAnswers} из ${r.totalQuestions}`);
+                    }
+                    );
+                    fragment.appendChild(resultsSection);
+
+                    if (r.incorrectQuestionsList && r.incorrectQuestionsList.length > 0) {
+                        const errorsSection = createSection('Вопросы, на которые были даны неверные ответы или не дан ответ:', (section) => {
+                            const ul = document.createElement('ul');
+                            r.incorrectQuestionsList.forEach(q => {
+                                const li = document.createElement('li');
+                                li.textContent = q.text;
+                                const i = document.createElement('i');
+                                i.textContent = ` (${q.type})`;
+                                li.appendChild(i);
+                                ul.appendChild(li);
+                            }
+                            );
+                            section.appendChild(ul);
+                        }
+                        );
+                        fragment.appendChild(errorsSection);
+                    } else {
+                        const noErrorsSection = createSection('Ошибки:', (section) => {
+                            const p = document.createElement('p');
+                            const strong = document.createElement('strong');
+                            strong.textContent = 'Все ответы верны!';
+                            p.appendChild(strong);
+                            section.appendChild(p);
+                        }
+                        );
+                        fragment.appendChild(noErrorsSection);
+                    }
+
+                    const footerSection = document.createElement('div');
+                    footerSection.className = 'print-footer';
+                    footerSection.style.marginTop = '40px';
+                    const pFooter = document.createElement('p');
+                    pFooter.textContent = 'Подпись тестируемого: __________________________';
+                    footerSection.appendChild(pFooter);
+                    fragment.appendChild(footerSection);
+
+                    return fragment;
+                }
+
+                async printErrorReport(isAutoTriggered=false) {
+                    if (!this.results) {
+                        if (!isAutoTriggered)
+                            this.showCustomAlert("Результаты теста еще не рассчитаны.");
+                        return;
+                    }
+                    if (this.results.incorrectAnswers === 0) {
+                        if (!isAutoTriggered)
+                            this.showCustomAlert("Все ответы верны, отчет по ошибкам не требуется.");
+                        return;
+                    }
+
+                    const reportFragment = this.getErrorReportHTML();
+                    const printArea = document.getElementById('errorReportPrintArea');
+                    if (!printArea) {
+                        console.error("printErrorReport: printArea not found.");
+                        return;
+                    }
+
+                    // Очищаем перед печатью
+                    while (printArea.firstChild) {
+                        printArea.removeChild(printArea.firstChild);
+                    }
+                    printArea.appendChild(reportFragment);
+
+                    await this.waitForImagesToLoad(printArea);
+
+                    this.prepareElementForPrinting(printArea, false);
+                    // Запускаем печать и затем очищаем
+                    setTimeout( () => {
+                        window.print();
+                        this.restorePageAfterPrinting(printArea);
+                    }
+                    , 100);
+                }
+
+                async generateAndDownloadOfficialPDF() {
+                    if (!this.results) {
+                        this.showCustomAlert("Результаты теста отсутствуют.");
+                        return null;
+                    }
+                    if (!window.jspdf || !window.html2canvas) {
+                        this.showCustomAlert("Библиотеки PDF не загружены.");
+                        return null;
+                    }
+
+                    const blankContainer = document.getElementById('pdf-official-blank-container');
+                    if (!blankContainer) {
+                        console.error("PDF Generation Error: Element with ID 'pdf-official-blank-container' not found.");
+                        this.showCustomAlert("Ошибка подготовки PDF: не найден контейнер бланка.");
+                        return null;
+                    }
+                    const {jsPDF} = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: 'p',
+                        unit: 'mm',
+                        format: 'a4'
+                    });
+
+                    const ui = this.userInfo;
+                    const r = this.results;
+                    const fullName = `${ui.lastName} ${ui.firstName} ${ui.middleName || ''}`.trim();
+                    const testDate = this.testEndTime ? new Date(this.testEndTime) : new Date();
+                    const docDate = new Date();
+                    const months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+                    // --- ПРОВЕРКА и ЗАПОЛНЕНИЕ ДАННЫХ В HTML-макете бланка ---
+                    document.getElementById('pdf-doc-number').textContent = r.officialDocumentNumber ? `№ ${r.officialDocumentNumber}` : `№ ${r.correctAnswers}-${docDate.getDate()}${docDate.getMonth() + 1}`;
+                    document.getElementById('pdf-user-fullname').textContent = fullName;
+                    document.getElementById('pdf-user-position').textContent = ui.position || 'Не указана';
+                    document.getElementById('pdf-test-day').textContent = testDate.getDate().toString().padStart(2, '0');
+                    document.getElementById('pdf-test-month').textContent = months[testDate.getMonth()];
+                    document.getElementById('pdf-test-year').textContent = testDate.getFullYear();
+
+                    const passedTest = r.percentage >= 80;
+                    document.getElementById('pdf-prev-training-status').textContent = "НЕ ПРОХОДИЛ(А)";
+                    document.getElementById('pdf-material-mastered').textContent = passedTest ? "УСВОИЛ(А)" : "НЕ УСВОИЛ(А)";
+                    document.getElementById('pdf-test-passed').textContent = passedTest ? "ВЫПОЛНИЛ(А)" : "НЕ ВЫПОЛНИЛ(А)";
+                    document.getElementById('pdf-score-percentage-val-inline').textContent = r.percentage;
+                    document.getElementById('pdf-grade-text-val-inline').textContent = r.grade.text;
+
+                    document.getElementById('pdf-commission-decision').textContent = passedTest ? "Допустить" : "Не допустить";
+                    document.getElementById('pdf-user-fullname-conclusion').textContent = fullName;
+                    document.getElementById('pdf-user-position-conclusion').textContent = ui.position || 'должность не указана';
+
+                    document.getElementById('pdf-user-position-signature').textContent = ui.position || 'Должность не указана';
+                    document.getElementById('pdf-user-fullname-signature').textContent = fullName;
+
+                    document.getElementById('pdf-training-day').textContent = docDate.getDate().toString().padStart(2, '0');
+                    document.getElementById('pdf-training-month').textContent = months[docDate.getMonth()];
+                    document.getElementById('pdf-training-year').textContent = docDate.getFullYear();
+                    document.getElementById('pdf-user-sign-day').textContent = docDate.getDate().toString().padStart(2, '0');
+                    document.getElementById('pdf-user-sign-month').textContent = months[docDate.getMonth()];
+                    document.getElementById('pdf-user-sign-year').textContent = docDate.getFullYear();
+
+                    // --- Подготовка к рендерингу ---
+                    const originalBodyOverflow = document.body.style.overflow;
+                    document.body.style.overflow = 'hidden';
+                    blankContainer.style.display = 'block';
+                    blankContainer.style.position = 'fixed';
+                    blankContainer.style.left = '0px';
+                    blankContainer.style.top = '0px';
+                    blankContainer.style.zIndex = '20000';
+                    window.scrollTo(0, 0);
+
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                    // Даем время на рендеринг
+
+                    let fileName = `Заключение_152ФЗ_${ui.lastName || 'Сотрудник'}_${ui.firstName || ''}`;
+                    fileName = fileName.replace(/[^\w\dа-яА-ЯёЁ\s_-]/g, '').replace(/\s+/g, '_') + `_${docDate.toLocaleDateString('ru-RU').replace(/\./g, '-')}.pdf`;
+
+                    try {
+                        const canvas = await html2canvas(blankContainer, {
+                            scale: 2.5,
+                            useCORS: true,
+                            logging: false,
+                            width: blankContainer.offsetWidth,
+                            height: blankContainer.offsetHeight,
+                            windowWidth: window.innerWidth,
+                            windowHeight: window.innerHeight,
+                            scrollX: 0,
+                            scrollY: 0
+                        });
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const imgProps = pdf.getImageProperties(imgData);
+                        const newImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, newImgHeight);
+                        pdf.save(fileName);
+                    } catch (error) {
+                        console.error("Ошибка при генерации PDF:", error);
+                        this.showCustomAlert("Произошла ошибка при создании PDF отчета. Подробнее в консоли.");
+                    } finally {
+                        // --- Восстановление страницы после рендеринга ---
+                        blankContainer.style.display = 'none';
+                        blankContainer.style.position = 'absolute';
+                        blankContainer.style.left = '-9999px';
+                        blankContainer.style.top = '-9999px';
+                        blankContainer.style.zIndex = '-1';
+                        document.body.style.overflow = originalBodyOverflow;
+                    }
+
+                    return fileName;
+                }
+
+                resetTest() {
+                    window.location.reload();
+                }
+            }
+
+            function showStartupError(message) {
+                const container = document.querySelector('.container');
+                if (container) {
+                    container.innerHTML = `<div class="card"><div class="card__body" style="text-align: center;"><h2 style="color: var(--color-error); margin-bottom: 16px;">Ошибка загрузки</h2><p>${message}</p><p>Пожалуйста, проверьте, что файл <code>/questions_data.js</code> существует и доступен.</p></div></div>`;
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                if (typeof var_encodedQuestionData === 'undefined' || !var_encodedQuestionData) {
+                    console.error("Файл questions_data.js не загружен или пуст.");
+                    showStartupError("Не удалось загрузить данные вопросов.");
+                    return;
+                }
+                new PersonalDataTestApp();
+            }
+            );
+        </script>
+    </body>
+</html>

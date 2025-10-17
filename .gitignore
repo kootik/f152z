@@ -1,0 +1,23 @@
+# Файл: .gitignore
+
+# Виртуальное окружение
+.venv/
+.env
+venv/
+
+# Файлы кэша
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.pyc
+# Файлы IDE
+.vscode/
+.idea/
+
+# Локальные переменные
+.env*
+
+# Логи и временные файлы
+*.log
+*.swp

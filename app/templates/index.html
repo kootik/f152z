@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учебный портал по безопасности</title>
+    <style>
+        :root {
+            /* Colors */
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #212529;
+            --color-text-secondary: #6c757d;
+            --color-primary: #0d6efd;
+            --color-primary-hover: #0b5ed7;
+            --color-border: #dee2e6;
+            --color-input-border: #ced4da;
+            --color-input-focus-border: #86b7fe;
+            --color-input-focus-shadow: rgba(13, 110, 253, 0.25);
+
+            /* Typography */
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-size-base: 16px;
+            --line-height-base: 1.6;
+
+            /* Spacing */
+            --space-8: 8px;
+            --space-16: 16px;
+            --space-24: 24px;
+            --space-32: 32px;
+            --space-64: 64px;
+
+            /* Borders */
+            --border-radius: 8px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            margin: 0;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: var(--line-height-base);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 var(--space-16);
+        }
+
+        .header {
+            background-color: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-16) 0;
+        }
+        
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header__title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .header__logo {
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: var(--space-64) 0;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-32);
+            max-width: 600px;
+        }
+        
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            font-size: 1.1rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        .btn--primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        .btn--primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .user-form {
+            background-color: var(--color-surface);
+            padding: var(--space-32);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            max-width: 500px;
+            width: 100%;
+            text-align: left;
+            margin-top: var(--space-32);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-24);
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: var(--space-8);
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--color-input-border);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: #fff;
+        }
+
+        .form-select {
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 16px 12px;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--color-input-focus-border);
+            box-shadow: 0 0 0 4px var(--color-input-focus-shadow);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: var(--space-24) 0;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="header__title">Учебный <span class="header__logo">Портал</span></h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <h2 class="page-title">Аттестация по требованиям безопасности информации</h2>
+        <p class="page-subtitle">Подтвердите свою готовность к работе с информацией ограниченного доступа, циркулирующей в государственных информационных системах (ГИС).</p>
+        
+        <form id="user-info-form" class="user-form">
+            <div class="form-group">
+                <label for="lastName" class="form-label">Фамилия *</label>
+                <input type="text" id="lastName" class="form-input" required placeholder="Введите фамилию">
+            </div>
+            <div class="form-group">
+                <label for="firstName" class="form-label">Имя *</label>
+                <input type="text" id="firstName" class="form-input" required placeholder="Введите имя">
+            </div>
+             <div class="form-group">
+                <label for="middleName" class="form-label">Отчество</label>
+                <input type="text" id="middleName" class="form-input" placeholder="Введите отчество">
+            </div>
+            <div class="form-group">
+                <label for="position" class="form-label">Должность *</label>
+                <select id="position" name="position" class="form-select" required>
+                    <option value="">Выберите должность</option>
+                    <option value="Министр природных ресурсов">Министр природных ресурсов</option>
+                    <option value="Первый заместитель министра природных ресурсов">Первый заместитель министра природных ресурсов</option>
+                    <option value="Заместитель министра природных ресурсов">Заместитель министра природных ресурсов</option>
+                    <option value="Начальник управления">Начальник управления</option>
+                    <option value="Заместитель начальника управления, начальник отдела в управлении">Заместитель начальника управления, начальник отдела в управлении</option>
+                    <option value="Начальник отдела">Начальник отдела</option>
+                    <option value="Начальник отдела в управлении">Начальник отдела в управлении</option>
+                    <option value="Заместитель начальника отдела">Заместитель начальника отдела</option>
+                    <option value="Заместитель начальника отдела в управлении">Заместитель начальника отдела в управлении</option>
+                    <option value="Главный консультант">Главный консультант</option>
+                    <option value="Ведущий консультант">Ведущий консультант</option>
+                    <option value="Консультант">Консультант</option>
+                    <option value="Главный государственный инспектор">Главный государственный инспектор</option>
+                    <option value="Ведущий специалист 1 разряда">Ведущий специалист 1 разряда</option>
+                    <option value="Ведущий специалист 2 разряда">Ведущий специалист 2 разряда</option>
+                    <option value="Помощник министра">Помощник министра</option>
+                    <option value="ГБУ">ГБУ</option>
+                </select>
+                 </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn--primary" style="width: 100%;">Начать обучение</button>
+            </div>
+        </form>
+        </main>
+
+    <footer class="footer">
+         <p>&copy; 2025 Отдел информационно технического обеспечения и защиты информации</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('user-info-form');
+
+            const normalizeName = (str) => {
+                if (!str) return '';
+                return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+            };
+
+            if (form) {
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+
+                    const userInfo = {
+                        lastName: normalizeName(document.getElementById('lastName').value.trim()),
+                        firstName: normalizeName(document.getElementById('firstName').value.trim()),
+                        middleName: normalizeName(document.getElementById('middleName').value.trim()), 
+                        position: document.getElementById('position').value.trim()
+                    };
+
+                    try {
+                        localStorage.setItem('lastUserInfo', JSON.stringify(userInfo));
+                    } catch (e) {
+                        console.error("Could not save user info to localStorage:", e);
+                        alert("Не удалось сохранить данные. Возможно, в вашем браузере отключено хранилище.");
+                        return;
+                    }
+
+                    window.location.href = 'index-start';
+                });
+            }
+        });
+    </script>
+    </body>
+</html>

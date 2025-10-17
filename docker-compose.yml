@@ -1,0 +1,68 @@
+
+# docker-compose.yml
+
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: flask_app
+      POSTGRES_USER: flask_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flask_user -d flask_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URI: postgresql://flask_user:${DB_PASSWORD}@postgres/flask_app
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SERVER_NAME: ${SERVER_NAME}
+      POSTGRES_USER: flask_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: flask_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      # Подключаем наш конфиг Nginx
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      # Подключаем папку с сертификатами (только для чтения)
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./app/static:/app/static:ro # <--- ДОБАВЬТЕ ЭТУ СТРОКУ
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:

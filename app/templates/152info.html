@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вводная информация по 152-ФЗ "О персональных данных"</title>
+    <style>
+        :root {
+            /* Colors */
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #212529;
+            --color-text-secondary: #6c757d;
+            --color-primary: #0d6efd;
+            --color-primary-hover: #0b5ed7;
+            --color-info-bg: #e0e7ff;
+            --color-info-border: #c7d2fe;
+            --color-info-text: #3730a3;
+            --color-border: #dee2e6;
+            --color-shadow: rgba(0, 0, 0, 0.075);
+
+            /* Typography */
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-size-base: 16px;
+            --line-height-base: 1.7;
+
+            /* Spacing */
+            --space-8: 8px;
+            --space-16: 16px;
+            --space-24: 24px;
+            --space-32: 32px;
+            --space-48: 48px;
+
+            /* Border Radius */
+            --radius-md: 8px;
+            --radius-lg: 12px;
+
+            /* Shadows */
+            --shadow-md: 0 4px 6px -1px var(--color-shadow);
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-family-base);
+            font-size: var(--font-size-base);
+            line-height: var(--line-height-base);
+            color: var(--color-text);
+            background-color: var(--color-background);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            background-color: var(--color-primary);
+            color: white;
+            padding: var(--space-32) 0;
+            text-align: center;
+            box-shadow: 0 2px 4px var(--color-shadow);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: var(--space-32) auto;
+            padding: var(--space-32);
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-md);
+        }
+
+        .content-section {
+            margin-bottom: var(--space-48);
+        }
+        
+        .content-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .content-section h2 {
+            font-size: 1.75rem;
+            color: var(--color-primary);
+            margin-top: 0;
+            margin-bottom: var(--space-16);
+            padding-bottom: var(--space-8);
+            border-bottom: 2px solid var(--color-border);
+        }
+        
+        .content-section p {
+            margin-bottom: var(--space-16);
+        }
+
+        .content-section ul {
+            list-style-type: '✓';
+            padding-left: var(--space-24);
+            margin: 0;
+        }
+
+        .content-section li {
+            margin-bottom: var(--space-16);
+            padding-left: var(--space-16);
+        }
+        
+        .content-section li::marker {
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+        
+        .content-section a {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .content-section a:hover {
+            color: var(--color-primary-hover);
+            text-decoration: underline;
+        }
+
+        .important-note {
+            background-color: var(--color-info-bg);
+            border-left: 5px solid var(--color-primary);
+            padding: var(--space-24);
+            margin: var(--space-32) 0;
+            border-radius: var(--radius-md);
+        }
+        
+        .important-note p {
+            margin: 0;
+            color: var(--color-info-text);
+            font-weight: 500;
+        }
+
+        .footer {
+            text-align: center;
+            padding: var(--space-24);
+            margin-top: var(--space-32);
+            background-color: #e9ecef;
+            color: var(--color-text-secondary);
+            font-size: 0.9em;
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: var(--space-32);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid transparent;
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            background-color: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: var(--space-16) auto;
+                padding: var(--space-24);
+            }
+            .header h1 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Учебные материалы по 152-ФЗ "О персональных данных"</h1>
+    </header>
+
+    <div class="container">
+        <section class="content-section">
+            <h2>Введение</h2>
+            <p>Федеральный закон № 152-ФЗ "О персональных данных" является основным нормативным актом, регулирующим обработку персональных данных в Российской Федерации. Его знание обязательно для всех сотрудников, имеющих доступ к персональным данным граждан.</p>
+            <p>Цель данного закона – обеспечение защиты прав и свобод человека и гражданина при обработке его персональных данных, в том числе защиты прав на неприкосновенность частной жизни, личную и семейную тайну.</p>
+        </section>
+
+        <section class="content-section">
+            <h2>Основные понятия</h2>
+            <ul>
+                <li><strong>Персональные данные</strong> – любая информация, относящаяся к прямо или косвенно определенному или определяемому физическому лицу (субъекту персональных данных).</li>
+                <li><strong>Обработка персональных данных</strong> – любое действие (операция) или совокупность действий, совершаемых с использованием средств автоматизации или без них с персональными данными, включая сбор, запись, систематизацию, накопление, хранение, уточнение, извлечение, использование, передачу, обезличивание, блокирование, удаление и уничтожение.</li>
+                <li><strong>Оператор</strong> – государственный орган, юридическое или физическое лицо, организующее и (или) осуществляющее обработку персональных данных, а также определяющее цели и содержание обработки.</li>
+                <li><strong>Субъект персональных данных</strong> – физическое лицо, которое прямо или косвенно определено или определяемо с помощью персональных данных.</li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>Ключевые принципы обработки</h2>
+            <p>Обработка персональных данных должна осуществляться на законной и справедливой основе и ограничиваться достижением конкретных, заранее определенных и законных целей.</p>
+            <ul>
+                <li>Законность целей и способов обработки.</li>
+                <li>Соответствие объема и характера обрабатываемых данных целям обработки.</li>
+                <li>Точность, достаточность и актуальность данных.</li>
+                <li>Недопустимость объединения баз данных для несовместимых целей.</li>
+                <li>Хранение данных не дольше, чем этого требуют цели их обработки.</li>
+            </ul>
+        </section>
+        
+        <section class="content-section">
+            <h2>Согласие на обработку</h2>
+            <p>По общему правилу, обработка персональных данных допускается только с согласия субъекта. Согласие должно быть конкретным, информированным и сознательным. В ряде случаев, установленных законом, обработка возможна без согласия субъекта.</p>
+        </section>
+
+        <div class="important-note">
+            <p><strong>Важно:</strong> Нарушение требований 152-ФЗ может повлечь за собой административную, гражданско-правовую и даже уголовную ответственность.</p>
+        </div>
+
+        <section class="content-section">
+            <h2>Дополнительные ресурсы</h2>
+            <ul>
+                <li><a href="http://www.consultant.ru/document/cons_doc_LAW_61801/" target="_blank" rel="noopener noreferrer">Полный текст Федерального закона № 152-ФЗ "О персональных данных"</a></li>
+                <li><a href="https://pd.rkn.gov.ru/" target="_blank" rel="noopener noreferrer">Портал персональных данных Роскомнадзора</a></li>
+                <li><a href="https://mpr.krasnodar.ru/department/politika-obrabotki-personalnykh-dannykh" target="_blank" rel="noopener noreferrer">Правила обработки персональных данных в министерстве природных ресурсов Краснодарского края</a></li>
+            </ul>
+        </section>
+        
+
+        <div class="navigation-buttons">
+            <a href="index-start" class="btn btn--secondary">← Назад на портал</a>
+            <a href="study"" class="btn btn--primary">Перейти к обучению →</a>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 Отдел Информационной Безопасности</p>
+    </footer>
+
+</body>
+</html>

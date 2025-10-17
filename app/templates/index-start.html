@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учебный портал по безопасности</title>
+    <style>
+        :root {
+            /* Colors */
+            --color-background: #f8f9fa;
+            --color-surface: #ffffff;
+            --color-text: #212529;
+            --color-text-secondary: #6c757d;
+            --color-primary: #0d6efd;
+            --color-primary-hover: #0b5ed7;
+            --color-warning: #ffc107;
+            --color-warning-bg: #fff8e1;
+            --color-warning-border: #ffecb3;
+            --color-info-bg: #e9ecef;
+            --color-info-border: #ced4da;
+            --color-border: #dee2e6;
+            --color-shadow: rgba(0, 0, 0, 0.075);
+
+            /* Typography */
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-size-base: 16px;
+            --line-height-base: 1.6;
+
+            /* Spacing */
+            --space-8: 8px;
+            --space-16: 16px;
+            --space-24: 24px;
+            --space-32: 32px;
+            --space-48: 48px;
+
+            /* Borders */
+            --border-radius: 8px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            margin: 0;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: var(--line-height-base);
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 var(--space-16);
+        }
+
+        .header {
+            background-color: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-16) 0;
+            margin-bottom: var(--space-32);
+        }
+        
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header__title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .header__logo {
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .main {
+            padding-bottom: var(--space-32);
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: var(--space-8);
+        }
+        
+        .page-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-48);
+        }
+
+        .info-section {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: var(--space-24);
+            margin-bottom: var(--space-32);
+        }
+        
+        .info-section h3 {
+             margin-top: 0;
+             font-size: 1.5rem;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-top: var(--space-48);
+            margin-bottom: var(--space-32);
+        }
+
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-24);
+            margin-bottom: var(--space-48);
+        }
+
+        .module {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px var(--color-shadow);
+            padding: var(--space-24);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .module:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+        }
+
+        .module__title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: var(--space-8);
+        }
+
+        .module__description {
+            flex-grow: 1;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-24);
+        }
+
+        .module__actions {
+            margin-top: auto;
+        }
+        
+        .btn {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .btn--primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        .btn--primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .warning-box {
+            background-color: var(--color-warning-bg);
+            border: 1px solid var(--color-warning-border);
+            padding: var(--space-24);
+            border-radius: var(--border-radius);
+        }
+        .warning-box h3 {
+            margin-top: 0;
+            color: #856404;
+            font-size: 1.5rem;
+        }
+        .warning-box ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+        .warning-box li {
+            margin-bottom: var(--space-8);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: var(--space-24) 0;
+            margin-top: var(--space-32);
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+        }
+
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1 class="header__title">Учебный <span class="header__logo">Портал</span></h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <h2 class="page-title">Обязательное обучение по безопасности</h2>
+        <p class="page-subtitle">Информация для государственных служащих о необходимости прохождения обучения и аттестации.</p>
+
+        <div class="info-section">
+            <h3>Требования по работе с персональными данными</h3>
+            <p>
+                В соответствии с законодательством (п. 6 ч. 1 ст. 18.1 Федерального закона № 152-ФЗ), все сотрудники, непосредственно работающие с персональными данными, обязаны пройти обучение.
+            </p>
+            <p>
+                <strong>Если вы ранее не проходили такое обучение, вам необходимо в обязательном порядке изучить предложенные материалы и рекомендуется пройти итоговую аттестацию.</strong> 
+            </p>
+			  <p>
+                Отсутствие подтвержденного обучения не только повышает риски для безопасности государственных данных, но и влечет за собой юридическую ответственность.
+            </p>
+        </div>
+        
+        <div class="info-section" style="background-color: var(--color-info-bg); border-color: var(--color-info-border);">
+            <h3>Правовые основания и ответственность</h3>
+            <p>
+                <strong>Правовым основанием</strong> для обучения служит <strong>Приказ ФСТЭК России № 17</strong>, который обязывает оператора организовывать регулярное обучение персонала по вопросам защиты информации и проводить обязательный контроль знаний (тестирование). В свою очередь, работники обязаны принимать участие в данных мероприятиях.
+            </p>
+            <p>
+                Как государственный служащий, вы несете персональную юридическую ответственность за сохранность и правомерное использование служебной информации. Недостаточный уровень знаний, выявленный в ходе тестирования, является прямым риском для безопасности государственных данных и может повлечь за собой <strong>дисциплинарную или административную ответственность</strong>.
+				 <p>Успешное прохождение является обязательным условием для допуска к работе с государственными информационными системами (ГИС).</p>
+            </p>
+        </div>
+
+        <h2 class="section-title">Доступные учебные модули</h2>
+        
+        <div class="module-grid">
+            <div class="module">
+                <h3 class="module__title">Основы информационной безопасности </h3>
+                <p class="module__description">
+                    Изучение требований к организации и техническим мерам защиты информации в государственных информационных системах (ГИС).
+                </p>
+                <div class="module__actions">
+                    <a href="/117infographic" class="btn btn--primary">Начать обучение</a>
+                </div>
+            </div>
+            <div class="module">
+                <h3 class="module__title">Работа с персональными данными (152-ФЗ)</h3>
+                <p class="module__description">
+                    Изучение ключевых положений закона "О персональных данных". Понимание принципов обработки, хранения и защиты ПДн.
+                </p>
+                <div class="module__actions">
+                    <a href="/152info" class="btn btn--primary">Начать обучение</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="warning-box">
+            <h3>Требования к прохождению аттестации</h3>
+            <p>
+                Процесс аттестации проходит под строгим цифровым контролем для обеспечения объективности результатов. Система производит непрерывный мониторинг и протоколирование следующих действий:
+            </p>
+            <ul>
+                <li><strong>Поведенческий анализ:</strong> Фиксируется динамика работы с клавиатурой и мышью, а также время обдумывания ответа.</li>
+                <li><strong>Контроль рабочей области:</strong> Регистрируется переключение на другие окна, вкладки или приложения.</li>
+                <li><strong>Уникальность сессии:</strong> Каждый запуск теста записывается и связывается с вашим профилем, исключая возможность повторной сдачи без разрешения.</li>
+            </ul>
+            <p>
+                Попытки обмана системы или использования подсказок будут расценены как грубое нарушение служебной дисциплины.
+            </p>
+        </div>
+        
+    </main>
+
+    <footer class="footer">
+         <p>&copy; 2025 Отдел информационно-технического обеспечения и защиты информации</p>
+    </footer>
+
+</body>
+</html>
