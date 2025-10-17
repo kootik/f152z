@@ -1,4 +1,3 @@
- Файл: .github/workflows/docker-publish.yml
 name: Docker Build, Test, Scan and Publish
 
 on:
