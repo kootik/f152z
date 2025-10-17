@@ -21,3 +21,4 @@ __pycache__/
 # Логи и временные файлы
 *.log
 *.swp
+/app/nginx/ssl/*.key

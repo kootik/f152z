@@ -150,13 +150,14 @@ jobs:
         severity: 'CRITICAL,HIGH'
 
   deploy:
-    needs: [build-push-and-scan] # Зависимость обновлена
+    needs: [build-push-and-scan]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/refactor/docker-ci') && github.event_name == 'push'
     environment: production
-    
+
     steps:
     - name: Deploy to production
       run: |
-        echo "Deploying to production..."
-        # Здесь в будущем будут ваши команды для деплоя на сервер
+        echo "Deploying branch ${{ github.ref_name }} to production..."
+        # Your deployment commands go here
+
