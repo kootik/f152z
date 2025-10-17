@@ -1,5 +1,5 @@
-# Файл: .github/workflows/docker-publish.yml
-name: Docker Build and Publish
+ Файл: .github/workflows/docker-publish.yml
+name: Docker Build, Test, Scan and Publish
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres # Для тестов используем стандартные креды
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         options: >-
@@ -77,15 +77,13 @@ jobs:
         bandit -r app/
         safety check -r requirements.txt
     
-    - name: Run tests with coverage
+    - name: Run tests and generate reports
       env:
-        # Переменные окружения для подключения к сервисам postgres и redis
         DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_db
         REDIS_URL: redis://localhost:6379
-        # Используем тестовый ключ, т.к. реальный секрет здесь не нужен
         SECRET_KEY: test-secret-key 
       run: |
-        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term --junitxml=junit.xml -o junit_family=legacy
     
 
     - name: Upload coverage reports to Codecov
@@ -93,13 +91,17 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
-  build-and-push:
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+  build-push-and-scan: #
     needs: test
     runs-on: ubuntu-latest
-    # Этот job будет запускаться только если тесты прошли успешно
     permissions:
       contents: read
-      packages: write # Право на запись в GitHub Packages (Container Registry)
+      packages: write 
     
     steps:
     - name: Checkout repository
@@ -113,7 +115,7 @@ jobs:
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }} # Специальный временный токен
+        password: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Extract metadata (tags, labels) for Docker
       id: meta
@@ -122,6 +124,7 @@ jobs:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     
     - name: Build and push Docker image
+      id: build # Добавлен id для ссылки на digest
       uses: docker/build-push-action@v4
       with:
         context: .
@@ -136,27 +139,20 @@ jobs:
           VERSION=${{ steps.meta.outputs.version }}
         platforms: linux/amd64,linux/arm64
 
-  security-scan:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    # Не запускаем для Pull Request, т.к. образ еще не опубликован под 'latest'
-    if: github.event_name != 'pull_request'
+    - name: Run Trivy vulnerability scanner # ИЗМЕНЕНИЕ 4: Trivy сканирует по digest
     
-    steps:
-    - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest'
+        image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}'
         format: 'table'
-        exit-code: '1' # Упасть, если найдены CRITICAL уязвимости
+        exit-code: '1'
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: 'CRITICAL,HIGH'
 
   deploy:
-    needs: [build-and-push, security-scan]
+    needs: [build-push-and-scan] # Зависимость обновлена
     runs-on: ubuntu-latest
-    # Запускать только при пуше в main
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     
@@ -164,5 +160,4 @@ jobs:
     - name: Deploy to production
       run: |
         echo "Deploying to production..."
-        # Здесь в будущем будут ваши команды для деплоя на сервер:
-        # например, ssh-ключ и запуск docker-compose pull && docker-compose up -d
+        # Здесь в будущем будут ваши команды для деплоя на сервер
