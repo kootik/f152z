@@ -2,14 +2,14 @@
 
 
 # =============================================================================
-# f152z Deployment Script v2.9 (финальная версия)
+# f152z Deployment Script v3.0 (финальная версия)
 # =============================================================================
 # Автоматизированный скрипт развертывания веб-приложения f152z
 # Требования: Linux-based OS, Docker, Docker Compose, sudo права
 # =============================================================================
 
 # --- Константы и конфигурация ---
-readonly SCRIPT_VERSION="2.9"
+readonly SCRIPT_VERSION="3.0"
 readonly IMAGE_NAME="ghcr.io/kootik/f152z"
 readonly IMAGE_TAG="refactor-docker-ci"
 readonly ENV_FILE="prod.env"
@@ -845,6 +845,46 @@ clean-backups: ## Удалить старые резервные копии (с�
 	@find $(BACKUP_DIR) -name "*.sql.gz" -mtime +30 -delete
 	@echo -e "$(GREEN)✓ Очистка завершена$(NC)"
 
+# --- Управление API-ключами ---
+.PHONY: create-apikey
+create-apikey: ## Создать API-ключ с определенными правами
+	@echo -e "$(BLUE)Создание нового API-ключа...$(NC)"
+	@read -p "Введите имя ключа (например, Frontend Client): " key_name; \
+	read -p "Введите разрешенные эндпоинты (через запятую, например, api.log_event,api.save_results): " key_endpoints; \
+	if [ -z "$$key_name" ] || [ -z "$$key_endpoints" ]; then \
+		echo -e "$(RED)❌ Имя и эндпоинты не могут быть пустыми!$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "Генерация ключа для '$$key_name'..."; \
+	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --endpoints "$$key_endpoints" | awk '{print $$NF}'); \
+	if [ -z "$$API_KEY" ]; then \
+		echo -e "$(RED)❌ Не удалось сгенерировать ключ. Проверьте логи приложения.$(NC)"; \
+		exit 1; \
+	fi; \
+	VAR_NAME="API_KEY_$$(echo $$key_name | tr '[:lower:]' '[:upper:]' | tr ' -' '_')"; \
+	echo -e "\n# API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
+	echo -e "$(GREEN)✓ Ключ успешно сгенерирован и сохранен в $(ENV_FILE) как $$VAR_NAME$(NC)"; \
+	echo -e "$(YELLOW)Пример использования:$(NC)"; \
+	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
+.PHONY: create-admin-apikey
+create-admin-apikey: ## Создать API-ключ с правами администратора
+	@echo -e "$(BLUE)Создание нового API-ключа администратора...$(NC)"
+	@read -p "Введите имя ключа (например, Admin Key): " key_name; \
+	if [ -z "$$key_name" ]; then \
+		echo -e "$(RED)❌ Имя не может быть пустым!$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "Генерация ключа администратора для '$$key_name'..."; \
+	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --admin | awk '{print $$NF}'); \
+	if [ -z "$$API_KEY" ]; then \
+		echo -e "$(RED)❌ Не удалось сгенерировать ключ. Проверьте логи приложения.$(NC)"; \
+		exit 1; \
+	fi; \
+	VAR_NAME="API_KEY_$$(echo $$key_name | tr '[:lower:]' '[:upper:]' | tr ' -' '_')"; \
+	echo -e "\n# API-ключ администратора для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
+	echo -e "$(GREEN)✓ Ключ успешно сгенерирован и сохранен в $(ENV_FILE) как $$VAR_NAME$(NC)"; \
+	echo -e "$(YELLOW)Пример использования:$(NC)"; \
+	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
 # --- Отладка и диагностика ---
 .PHONY: shell
 shell: ## Открыть shell в контейнере приложения
