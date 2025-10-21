@@ -22,8 +22,7 @@ LABEL org.opencontainers.image.source="https://github.com/kootik/f152z"
 WORKDIR /app
 
 # Copy and install Python dependencies
-# Обратите внимание: requirements-dev.txt* - это wildcard, который может вызвать проблемы.
-# Мы будем копировать файлы явно.
+
 COPY requirements.txt requirements-dev.txt ./
 RUN python -m pip install --upgrade pip setuptools wheel && \
     pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
@@ -104,6 +103,10 @@ RUN mkdir -p /app/logs && \
 RUN find /app -name "*.pyc" -delete && \
     find /app -name "__pycache__" -type d -delete && \
     rm -rf /app/tests /app/.git /app/.pytest_cache /app/requirements-dev.txt
+
+# --- ДОБАВЛЕННАЯ СТРОКА ---
+# Помечаем папку со статикой как том, чтобы ее можно было монтировать в Nginx
+VOLUME /app/static
 
 # Switch to non-root user
 USER appuser

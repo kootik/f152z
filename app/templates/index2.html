@@ -4,10 +4,15 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Тест на знание 152-ФЗ о персональных данных</title>
+        <script>
+            // Эта переменная будет заполнена Flask/Jinja2 при рендеринге страницы
+            const API_KEY = "{{ frontend_api_key|safe }}";
+            console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
+        </script>
         <!-- Подключение jsPDF -->
-        <script src="jspdf.umd.min.js"></script>
+        <script src="{{ url_for('static', filename='jspdf.umd.min.js') }}"></script>
         <!-- Подключение html2canvas -->
-        <script src="html2canvas.min.js"></script>
+        <script src="{{ url_for('static', filename='html2canvas.min.js') }}"></script>
         <style>
             :root {
                 /* Colors */
@@ -1813,7 +1818,7 @@
 	            </div>
 	        </div>
 	        </div>
-        <script src="/questions_data.js"></script>
+        <script src="{{ url_for('static', filename='questions_data.js') }}"></script>
         <script>
             const {jsPDF} = window.jspdf;
 
@@ -1918,7 +1923,7 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-API-Key': this.API_KEY
+                                'X-API-Key': API_KEY
                             },
                             body: JSON.stringify(payload)
                         });

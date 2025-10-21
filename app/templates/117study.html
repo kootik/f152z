@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Учебный курс по требованиям Приказа ФСТЭК № 117</title>
+        <script>
+            // Эта переменная будет заполнена Flask/Jinja2 при рендеринге страницы
+            const API_KEY = "{{ frontend_api_key|safe }}";
+            console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
+        </script>
     <style>
         :root {
             /* Colors */
@@ -652,7 +657,10 @@
                 try {
                     await fetch('/api/log_event', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
                         body: JSON.stringify(payload)
                     });
                 } catch (error) {

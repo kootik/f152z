@@ -650,7 +650,7 @@ initialize_application() {
         # Загружаем email администратора из файла для итогового отчета
         declare -g admin_email
         admin_email=$(cat "$admin_flag_file")
-        print_color "yellow" "✓ Учетная запись администратора ($admin_email) была создана ранее. Пропуск шага."
+        print_color "yellow" "✓ Учетная запись администратора ($admin_email) и API-ключ были созданы ранее. Пропуск шага."
         return 0
     fi
     
@@ -668,9 +668,26 @@ initialize_application() {
         print_color "green" "✓ Учетная запись администратора создана."
     fi
 
+    # --- НОВЫЙ БЛОК: Автоматическое создание API-ключа ---
+    print_color "blue" "Автоматическое создание API-ключа для Frontend..."
+    local key_name="frontend_api_key"
+    local key_endpoints="api.log_event,api.save_results"
+    local frontend_key_var="API_KEY_FRONTEND_API_KEY"
+    
+    # Выполняем команду и извлекаем ключ, перенаправляя вывод в лог
+    local api_key
+    api_key=$($COMPOSER exec -T app flask create-apikey "$key_name" --endpoints "$key_endpoints" 2>&1 | tee -a "$LOG_FILE" | grep 'Ключ:' | awk '{print $NF}')
+    if [[ -n "$api_key" ]]; then
+        # Добавляем ключ в .env файл
+        echo -e "\n# Auto-generated API key for Frontend\n${frontend_key_var}=${api_key}" >> "$ENV_FILE"
+        print_color "green" "✓ API-ключ для Frontend успешно создан и сохранен в ${ENV_FILE}"
+    else
+        print_color "yellow" "⚠ Не удалось автоматически создать API-ключ для Frontend. Возможно, он уже существует в базе или произошла ошибка."
+    fi
+    # --- КОНЕЦ НОВОГО БЛОКА ---
     # Создаем файл-флаг, чтобы этот шаг не выполнялся повторно
     echo "$admin_email" > "$admin_flag_file"
-    print_color "green" "✓ Флаг '${admin_flag_file}' создан для предотвращения повторного создания администратора."
+    print_color "green" "✓ Флаг '${admin_flag_file}' создан для предотвращения повторной инициализации."
 }
 
 # --- Функции создания вспомогательных скриптов ---
@@ -856,7 +873,7 @@ create-apikey: ## Создать API-ключ с определенными пр
 		exit 1; \
 	fi; \
 	echo "Генерация ключа для '$$key_name'..."; \
-	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --endpoints "$$key_endpoints" | awk '{print $$NF}'); \
+	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --endpoints "$$key_endpoints" | grep 'Ключ:' | awk '{print $$NF}'); \
 	if [ -z "$$API_KEY" ]; then \
 		echo -e "$(RED)❌ Не удалось сгенерировать ключ. Проверьте логи приложения.$(NC)"; \
 		exit 1; \
@@ -865,7 +882,7 @@ create-apikey: ## Создать API-ключ с определенными пр
 	echo -e "\n# API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
 	echo -e "$(GREEN)✓ Ключ успешно сгенерирован и сохранен в $(ENV_FILE) как $$VAR_NAME$(NC)"; \
 	echo -e "$(YELLOW)Пример использования:$(NC)"; \
-	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
+	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
 .PHONY: create-admin-apikey
 create-admin-apikey: ## Создать API-ключ с правами администратора
 	@echo -e "$(BLUE)Создание нового API-ключа администратора...$(NC)"
@@ -875,7 +892,7 @@ create-admin-apikey: ## Создать API-ключ с правами админ
 		exit 1; \
 	fi; \
 	echo "Генерация ключа администратора для '$$key_name'..."; \
-	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --admin | awk '{print $$NF}'); \
+	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --admin | grep 'Ключ:' | awk '{print $$NF}'); \
 	if [ -z "$$API_KEY" ]; then \
 		echo -e "$(RED)❌ Не удалось сгенерировать ключ. Проверьте логи приложения.$(NC)"; \
 		exit 1; \
@@ -884,7 +901,22 @@ create-admin-apikey: ## Создать API-ключ с правами админ
 	echo -e "\n# API-ключ администратора для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
 	echo -e "$(GREEN)✓ Ключ успешно сгенерирован и сохранен в $(ENV_FILE) как $$VAR_NAME$(NC)"; \
 	echo -e "$(YELLOW)Пример использования:$(NC)"; \
-	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
+	source $(ENV_FILE) && echo "  curl -k -H \"X-API-Key: $$API_KEY\" https://$$SERVER_NAME/api/get_results";
+
+.PHONY: autocreate-frontend-apikey
+autocreate-frontend-apikey: ## (Внутренняя) Автоматически создать API-ключ для Frontend
+	@echo -e "$(BLUE)Автоматическое создание API-ключа для Frontend...$(NC)"
+	@KEY_NAME="frontend_api_key"; \
+	ENDPOINTS="api.log_event,api.save_results"; \
+	API_KEY=$$($(COMPOSE) exec -T app flask create-apikey "$$KEY_NAME" --endpoints "$$ENDPOINTS" | grep 'Ключ:' | awk '{print $$NF}'); \
+	if [ -z "$$API_KEY" ]; then \
+		echo -e "$(RED)❌ Не удалось автоматически сгенерировать ключ для Frontend.$(NC)"; \
+		exit 1; \
+	fi; \
+	VAR_NAME="API_KEY_$$(echo $$KEY_NAME | tr '[:lower:]' '[:upper:]')"; \
+	echo -e "\n# Auto-generated API key for Frontend\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
+	echo -e "$(GREEN)✓ Ключ для Frontend успешно сгенерирован и сохранен в $(ENV_FILE) как $$VAR_NAME$(NC)";
+
 # --- Отладка и диагностика ---
 .PHONY: shell
 shell: ## Открыть shell в контейнере приложения

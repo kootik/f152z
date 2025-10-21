@@ -1,6 +1,4 @@
-
-# docker-compose.yml
-
+# docker-compose.yml (для локальной разработки)
 
 services:
   postgres:
@@ -40,6 +38,7 @@ services:
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: ${CORS_ORIGINS}
       SERVER_NAME: ${SERVER_NAME}
+      API_KEY_FRONTEND_CLIENT: ${API_KEY_FRONTEND_CLIENT}
       POSTGRES_USER: flask_user
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: flask_app
@@ -58,6 +57,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./app/static:/app/static:ro
     depends_on:
       - app
 

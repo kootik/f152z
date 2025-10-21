@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вводная информация по 152-ФЗ "О персональных данных"</title>
+        <script>
+            // Эта переменная будет заполнена Flask/Jinja2 при рендеринге страницы
+            const API_KEY = "{{ frontend_api_key|safe }}";
+            console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
+        </script>
+
     <style>
         :root {
             /* Colors */

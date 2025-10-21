@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Обучающий курс по 152-ФЗ "О персональных данных" (Офлайн-версия)</title>
+    <title>Обучающий курс по 152-ФЗ "О персональных данных"</title>
+        <script>
+            // Эта переменная будет заполнена Flask/Jinja2 при рендеринге страницы
+            const API_KEY = "{{ frontend_api_key|safe }}";
+            console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
+        </script>
+
 	<link href="{{ url_for('static', filename='css/fonts.css') }}" rel="stylesheet">
     <style>
 

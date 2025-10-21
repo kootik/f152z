@@ -63,7 +63,7 @@ class Config:
     MAX_RESULTS_PER_PAGE = 1000
     MAX_SESSION_ID_LENGTH = 128
     MAX_EVENT_TYPE_LENGTH = 64
-
+    API_KEY_FRONTEND_CLIENT = os.environ.get("API_KEY_FRONTEND_CLIENT")
     # Proxy
     USE_PROXY_FIX = False
     PROXY_FIX_X_FOR = 1
