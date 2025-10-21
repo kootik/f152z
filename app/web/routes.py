@@ -21,16 +21,15 @@ from app.models import User
 from . import web_bp
 from .forms import LoginForm
 
-
 # =============================================================================
 # ОСНОВНЫЕ МАРШРУТЫ ДЛЯ ОТОБРАЖЕНИЯ СТРАНИЦ
 # =============================================================================
+
 
 @web_bp.route("/")
 def index():
     """Отдает главную страницу с тестом."""
     return render_template("index.html")
-
 
 
 @web_bp.route("/117study")
@@ -103,6 +102,7 @@ def show_index_start_page():
 # АУТЕНТИФИКАЦИЯ АДМИНИСТРАТОРОВ
 # =============================================================================
 
+
 @web_bp.route("/login", methods=["GET", "POST"])
 def login():
     """Обрабатывает аутентификацию пользователей."""
@@ -137,6 +137,7 @@ def logout():
 # СЛУЖЕБНЫЕ МАРШРУТЫ
 # =============================================================================
 
+
 @web_bp.route("/favicon.ico")
 def favicon():
     """Отдает favicon.ico."""
@@ -146,6 +147,8 @@ def favicon():
         "favicon.ico",
         mimetype="image/vnd.microsoft.icon",
     )
+
+
 @web_bp.route("/health")
 def health_check():
     """
