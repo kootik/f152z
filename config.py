@@ -14,6 +14,10 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(32).hex()
     SERVER_NAME = os.environ.get("SERVER_NAME")
 
+    # Путь, куда команда 'flask collect' будет складывать все статические файлы.
+    # Этот путь должен совпадать с тем, что указан в docker-compose.yml для volume.
+    STATIC_ROOT = "/app/static"
+
     # Database
     SQLALCHEMY_DATABASE_URI = (
         os.environ.get("DATABASE_URI") or "postgresql://user:pass@localhost/dbname"

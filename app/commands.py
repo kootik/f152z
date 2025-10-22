@@ -1,6 +1,9 @@
 # app/commands.py
+import os
+import shutil
 
 import click
+from flask import current_app
 from flask.cli import with_appcontext
 
 from app.extensions import cache, db
@@ -87,8 +90,36 @@ def revoke_apikey(key):
     click.echo(f"API-ключ '{api_key.name}' был отозван.")
 
 
+@click.command("collect")
+@with_appcontext
+def collect_static_command():
+    """Собирает статические файлы в директорию STATIC_ROOT."""
+    static_folder = current_app.static_folder
+    # Путь назначения - это тот же путь, что и в Docker-томе (/app/static)
+    # Мы берем его из конфигурации Flask для гибкости.
+    destination = current_app.config.get("STATIC_ROOT", static_folder)
+
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+
+    # Очищаем старую статику перед копированием новой
+    for item in os.listdir(destination):
+        item_path = os.path.join(destination, item)
+        if os.path.isdir(item_path):
+            shutil.rmtree(item_path)
+        else:
+            os.remove(item_path)
+
+    click.echo(f"Очищена директория: {destination}")
+
+    # Копируем файлы
+    shutil.copytree(static_folder, destination, dirs_exist_ok=True)
+    click.echo(f"Статические файлы скопированы из {static_folder} в {destination}")
+
+
 def register_commands(app):
     """Регистрирует CLI-команды в приложении."""
     app.cli.add_command(create_admin)
     app.cli.add_command(create_apikey)
     app.cli.add_command(revoke_apikey)
+    app.cli.add_command(collect_static_command)
