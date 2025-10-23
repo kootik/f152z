@@ -96,8 +96,8 @@ RUN groupadd -r appuser && \
 COPY --chown=appuser:appuser . .
 
 # Create necessary directories
-RUN mkdir -p /app/logs && \
-    chown -R appuser:appuser /app/logs
+RUN mkdir -p /app/logs /app/static && \
+    chown -R appuser:appuser /app/logs /app/static
 
 # Security: Remove unnecessary files
 RUN find /app -name "*.pyc" -delete && \
