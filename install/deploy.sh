@@ -418,6 +418,49 @@ check_docker_compose() {
     return 0
 }
 
+check_and_install_make() {
+    if command -v make &>/dev/null; then
+        print_color "green" "✓ 'make' уже установлен."
+        return 0
+    fi
+
+    print_color "yellow" "Команда 'make' не найдена. Попытка установки..."
+
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        read -rp "Продолжить установку 'make'? (y/n): " install_confirm
+        if [[ "$install_confirm" != "y" ]]; then
+            error_exit "Установка 'make' отменена. Makefile и команда 'make help' будут недоступны."
+        fi
+    fi
+
+    # Скрываем вывод, чтобы не засорять лог развертывания
+    # В случае ошибки, она все равно будет обработана
+    case "$OS" in
+        ubuntu|debian)
+            sudo apt-get update >/dev/null 2>&1
+            if ! sudo apt-get install -y make; then
+                error_exit "Не удалось установить 'make' с помощью apt-get."
+            fi
+            ;;
+        centos|rhel|fedora)
+            if ! sudo dnf install -y make; then
+                error_exit "Не удалось установить 'make' с помощью dnf."
+            fi
+            ;;
+        *)
+            print_color "red" "Не удалось автоматически установить 'make' для ОС: $OS."
+            print_color "red" "Пожалуйста, установите 'make' вручную и перезапустите скрипт."
+            return 1
+            ;;
+    esac
+
+    if ! command -v make &>/dev/null; then
+        error_exit "Команда 'make' все еще недоступна после попытки установки."
+    fi
+
+    print_color "green" "✓ 'make' успешно установлен."
+}
+
 install_docker_instructions() {
     print_color "red" "Docker или Docker Compose не установлены или не соответствуют минимальным требованиям."
     print_color "yellow" "Инструкции по установке для вашей ОС ($OS):"
@@ -1333,13 +1376,23 @@ initialize_application() {
     # Создание API ключей
     create_api_keys
 
-    # --- НОВЫЙ БЛОК ---
+
     # Выполнение команды flask collect
-    print_color "blue" "Выполнение команды 'flask collect'..."
+    print_color "blue" "Сбор статических файлов ('flask collect')..."
     if ! $COMPOSER exec -T app flask collect 2>&1 | tee -a "$LOG_FILE"; then
         error_exit "Не удалось выполнить команду 'flask collect'"
     fi
     print_color "green" "✓ Команда 'flask collect' успешно выполнена"
+    
+    # Перезапуск сервисов для применения новых переменных окружения (например, API ключа)
+    print_color "blue" "Перезапуск сервисов для применения конфигурации..."
+    if ! $COMPOSER restart app nginx 2>&1 | tee -a "$LOG_FILE"; then
+        # Не прерываем выполнение, так как сервисы уже запущены
+        print_color "yellow" "Предупреждение: не удалось корректно перезапустить сервисы. Может потребоваться ручной перезапуск ('make restart')."
+    else
+        print_color "green" "✓ Сервисы перезапущены"
+    fi
+
 }
 
 
@@ -1947,6 +2000,7 @@ main() {
     if ! check_required_commands; then
         error_exit "Отсутствуют необходимые команды"
     fi
+    check_and_install_make
     if ! check_sudo; then
         error_exit "Требуются права администратора"
     fi

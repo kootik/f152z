@@ -1833,7 +1833,6 @@
                  * Обрабатывает событие попытки печати во время теста.
                  * Увеличивает счетчик попыток и отправляет лог на сервер.
                  */
-				API_KEY = '230cb277febca9271ac25eab9ac1a83fef0b8446a3ef0f709c36f8ec2fa2130f';
 
                 handleBeforePrint() {
                     this.printAttempts++;
@@ -3069,8 +3068,8 @@
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
-								'X-API-Key': this.API_KEY
+                                'Content-Type': 'application/json',
+                                'X-API-Key': API_KEY
                             },
                             body: JSON.stringify(data)
                         });
