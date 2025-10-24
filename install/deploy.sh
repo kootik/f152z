@@ -26,6 +26,7 @@ DRY_RUN="${F152Z_DRY_RUN:-false}"
 USE_LETSENCRYPT="${F152Z_USE_LETSENCRYPT:-false}"
 LETSENCRYPT_EMAIL="${F152Z_LETSENCRYPT_EMAIL:-}"
 PROCEED_WITH_DEPLOYMENT=false
+AUTO_INSTALL_DOCKER="false"
 
 # ============================================================================
 # Utility Functions
@@ -140,6 +141,7 @@ show_usage_and_exit() {
 
     print_color "yellow" "Основные опции:"
     echo "  --start             ▶️  Запустить интерактивную установку."
+    echo "  --install-docker     🐳 Автоматически установить Docker, если он отсутствует."
     echo "  --non-interactive   🤖 Запустить в неинтерактивном (автоматическом) режиме."
     echo "  --dry-run           🔬 Тестовый запуск без реального применения изменений."
     echo "  --use-letsencrypt   🔒 Использовать Let's Encrypt для получения SSL-сертификата."
@@ -418,6 +420,7 @@ check_docker_compose() {
     return 0
 }
 
+
 check_and_install_make() {
     if command -v make &>/dev/null; then
         print_color "green" "✓ 'make' уже установлен."
@@ -517,11 +520,103 @@ sudo usermod -aG docker \$USER
 echo "ВАЖНО: Перезайдите в систему или выполните 'newgrp docker', чтобы изменения вступили в силу."
 EOF
             ;;
+        altlinux)
+            cat << EOF
+# ALT Linux использует apt-get, но пакеты называются docker-engine и docker-compose.
+
+# 1. Обновите список пакетов:
+sudo apt-get update
+
+# 2. Установите Docker Engine и Docker Compose:
+sudo apt-get install -y docker-engine docker-compose
+
+# 3. Запустите сервис Docker и добавьте его в автозагрузку:
+sudo systemctl enable --now docker
+
+# 4. Добавьте вашего пользователя в группу docker, чтобы не использовать sudo:
+sudo usermod -aG docker $USER
+echo "ВАЖНО: Перезайдите в систему или выполните 'newgrp docker', чтобы изменения вступили в силу."
+EOF
+            ;;
         *)
             print_color "yellow" "Автоматические инструкции для $OS недоступны."
             print_color "yellow" "Посетите https://docs.docker.com/engine/install/ для получения инструкций."
             ;;
     esac
+}
+
+install_docker() {
+    print_color "yellow" "Запускаю автоматическую установку Docker для ОС: $OS..."
+
+    case "$OS" in
+        ubuntu|debian)
+            print_color "blue" "[1/5] Обновление списка пакетов..."
+            sudo apt-get update || error_exit "Не удалось обновить пакеты apt"
+            
+            print_color "blue" "[2/5] Установка зависимостей..."
+            sudo apt-get install -y ca-certificates curl gnupg || error_exit "Не удалось установить зависимости"
+            
+            print_color "blue" "[3/5] Добавление GPG ключа Docker..."
+            sudo install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL "https://download.docker.com/linux/${OS}/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg || error_exit "Не удалось скачать GPG ключ"
+            sudo chmod a+r /etc/apt/keyrings/docker.gpg
+            
+            print_color "blue" "[4/5] Добавление репозитория Docker..."
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS} $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            
+            print_color "blue" "[5/5] Установка Docker Engine и Docker Compose..."
+            sudo apt-get update || error_exit "Не удалось обновить пакеты apt после добавления репозитория"
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || error_exit "Не удалось установить пакеты Docker"
+            ;;
+        centos|rhel|fedora)
+            print_color "blue" "[1/3] Установка DNF плагинов..."
+            sudo dnf -y install dnf-plugins-core || error_exit "Не удалось установить dnf-plugins-core"
+            
+            print_color "blue" "[2/3] Добавление репозитория Docker..."
+            sudo dnf config-manager --add-repo "https://download.docker.com/linux/centos/docker-ce.repo" || error_exit "Не удалось добавить репозиторий Docker"
+            
+            print_color "blue" "[3/3] Установка Docker Engine и Docker Compose..."
+            sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || error_exit "Не удалось установить пакеты Docker"
+            ;;
+        altlinux)
+            print_color "blue" "[1/2] Обновление списка пакетов..."
+            sudo apt-get update || error_exit "Не удалось обновить пакеты apt"
+            
+            print_color "blue" "[2/2] Установка пакетов docker-engine и docker-compose..."
+            sudo apt-get install -y docker-engine docker-compose || error_exit "Не удалось установить docker-engine и docker-compose."
+            ;;
+        *)
+            error_exit "Автоматическая установка Docker для ОС '$OS' не поддерживается. Пожалуйста, установите вручную."
+            ;;
+    esac
+
+    print_color "green" "✓ Docker успешно установлен."
+    print_color "yellow" "Настройка прав доступа и запуск сервиса..."
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    if ! sudo usermod -aG docker "$USER"; then
+        print_color "yellow" "Предупреждение: не удалось добавить пользователя в группу docker. Команды 'docker' могут требовать 'sudo'."
+    fi
+
+    # --- НОВЫЙ БЛОК: ПРЕДЛОЖЕНИЕ ПЕРЕЗАГРУЗКИ ---
+    print_color "red" "\n!!! УСТАНОВКА ЗАВЕРШЕНА !!!"
+    print_color "yellow" "Для применения прав доступа к Docker и завершения установки требуется перезагрузка."
+    
+    if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+        read -rp "Перезагрузить систему сейчас? (y/n): " reboot_confirm
+        if [[ "$reboot_confirm" == "y" || "$reboot_confirm" == "Y" ]]; then
+            print_color "green" "Перезагрузка..."
+            sudo reboot
+        else
+            print_color "yellow" "Перезагрузка отменена. Пожалуйста, перезагрузите систему вручную."
+            print_color "cyan" "После этого перезапустите скрипт развертывания: ./$(basename "$0") --start"
+        fi
+    else
+        # В неинтерактивном режиме просто выводим сообщение
+        print_color "yellow" "Система требует перезагрузки. Пожалуйста, перезагрузите сервер вручную."
+    fi
+
+    exit 0
 }
 
 setup_docker_permissions() {
@@ -2008,12 +2103,13 @@ main() {
     # Шаг 2: Проверка Docker
     ((current_step++))
     print_step $current_step $total_steps "Проверка Docker"
-    if ! check_docker_compose; then
-        install_docker_instructions
-        error_exit "Требуется установка Docker"
-    fi
-    if ! check_docker_version; then
-        error_exit "Несовместимая версия Docker"
+    if ! check_docker_compose || ! check_docker_version; then
+        if [[ "$AUTO_INSTALL_DOCKER" == "true" ]]; then
+            install_docker # Вызываем новую функцию установки
+        else
+            install_docker_instructions
+            error_exit "Docker не найден или версия устарела. Запустите скрипт с флагом --install-docker для автоматической установки."
+        fi
     fi
 
     # Шаг 3: Настройка прав Docker
@@ -2094,6 +2190,10 @@ while [[ $# -gt 0 ]]; do
             PROCEED_WITH_DEPLOYMENT=true
             shift
             ;;
+        --install-docker) # <-- НАЧАЛО НОВОГО БЛОКА
+            AUTO_INSTALL_DOCKER="true"
+            shift
+            ;; # <-- КОНЕЦ НОВОГО БЛОКА
         --help)
             echo "Использование: $0 [OPTIONS]"
             echo ""
