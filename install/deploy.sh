@@ -481,6 +481,46 @@ EOF
     esac
 }
 
+setup_docker_permissions() {
+    local needs_relog=false
+
+    if ! getent group docker >/dev/null 2>&1; then
+        print_color "yellow" "Создание группы 'docker'..."
+        if ! sudo groupadd docker; then
+            error_exit "Не удалось создать группу docker"
+        fi
+        needs_relog=true
+    fi
+
+    if ! id -nG "$USER" | grep -qw "docker"; then
+        print_color "yellow" "Добавление пользователя '$USER' в группу 'docker'..."
+        if ! sudo usermod -aG docker "$USER"; then
+            error_exit "Не удалось добавить пользователя в группу docker"
+        fi
+        needs_relog=true
+    fi
+
+    # Применяем изменения группы для текущей сессии
+    if [[ "$needs_relog" == "true" ]]; then
+        print_color "red" "\n⚠ ВАЖНО! Права Docker были изменены."
+        print_color "yellow" "Выполните одно из следующих действий:"
+        print_color "cyan" "  1. Выйдите из системы и войдите снова"
+        print_color "cyan" "  2. Выполните: newgrp docker"
+        print_color "cyan" "  3. Перезапустите скрипт с sudo"
+
+        if [[ "$INTERACTIVE_MODE" == "true" ]]; then
+            read -rp "Попробовать применить изменения сейчас? (y/n): " apply_now
+            if [[ "$apply_now" == "y" ]]; then
+                exec sg docker "$0" "$@"
+            fi
+        fi
+
+        exit 0
+    fi
+
+    print_color "green" "✓ Права доступа к Docker настроены"
+}
+
 # ============================================================================
 # Configuration Functions
 # ============================================================================
