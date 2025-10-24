@@ -7,9 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     <title>Система Комплексного Анализа Тестирования v3.0</title>
-    
+    <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>    
     <!-- Подключаем Chart.js для графиков -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
