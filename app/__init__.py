@@ -81,20 +81,20 @@ def create_app(config_name=None):
         )
 
     with app.app_context():
-        print("--- СПИСОК ЗАРЕГИСТРИРОВАННЫХ URL ---")
-        rules = []
-        for rule in app.url_map.iter_rules():
-            rules.append(
-                {
-                    "Endpoint": rule.endpoint,
-                    "Methods": ",".join(rule.methods),
-                    "URL": str(rule),
-                }
-            )
-        for r in sorted(rules, key=lambda x: x["URL"]):
-            print(
-                f"URL: {r['URL']:<40} Endpoint: {r['Endpoint']:<30} Methods: {r['Methods']}"
-            )
+        #        print("--- СПИСОК ЗАРЕГИСТРИРОВАННЫХ URL ---")
+        #        rules = []
+        #        for rule in app.url_map.iter_rules():
+        #            rules.append(
+        #                {
+        #                    "Endpoint": rule.endpoint,
+        #                    "Methods": ",".join(rule.methods),
+        #                    "URL": str(rule),
+        #                }
+        #            )
+        #        for r in sorted(rules, key=lambda x: x["URL"]):
+        #            print(
+        #                f"URL: {r['URL']:<40} Endpoint: {r['Endpoint']:<30} Methods: {r['Methods']}"
+        #            )
         print("------------------------------------")
 
     return app

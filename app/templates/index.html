@@ -239,6 +239,73 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // ================== НАЧАЛО: ДОБАВЛЕННЫЙ БЛОК ==================
+            // --- Функции для работы с Persistent ID ---
+            const setCookie = (name, value, days) => {
+                let expires = "";
+                if (days) {
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                // Добавляем Secure флаг, если страница загружена по HTTPS
+                const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = name + "=" + (value || "") + expires + "; path=/; max-age=" + (days * 24 * 60 * 60) + "; SameSite=Lax" + secureFlag;
+                console.log(`Cookie "${name}" set with value: ${value}`); // Отладка
+            };
+            const getCookie = (name) => {
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i = 0; i < ca.length; i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            };
+            const generateUUID = () => {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    return crypto.randomUUID();
+                }
+                // Фолбэк для сред без crypto.randomUUID (например, не-HTTPS)
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+            const setupPersistentId = () => {
+                const COOKIE_NAME = 'persistentUserId_infosec';
+                const LS_NAME = 'lastTesterId_infosec';
+                let userId = getCookie(COOKIE_NAME);
+                if (!userId) {
+                    try {
+                        userId = localStorage.getItem(LS_NAME);
+                        if (userId) {
+                             console.log(`Restoring persistentId from localStorage: ${userId}`);
+                             setCookie(COOKIE_NAME, userId, 365); // Восстанавливаем куки из LS
+                        }
+                    } catch (e) {
+                        console.warn("localStorage is not available for reading persistentId.");
+                    }
+                }
+                if (!userId) {
+                    userId = generateUUID();
+                    console.log(`Generated new persistentId: ${userId}`);
+                } else {
+                     console.log(`Found existing persistentId in cookie: ${userId}`);
+                }
+                try {
+                    localStorage.setItem(LS_NAME, userId);
+                } catch (e) {
+                    console.warn("localStorage is not available for saving persistentId.");
+                }
+                setCookie(COOKIE_NAME, userId, 365); // Устанавливаем или обновляем cookie
+                return userId; // Возвращаем ID
+            };
+            // --- ВЫЗОВ ФУНКЦИИ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ ---
+            const persistentId = setupPersistentId();
+            console.log('Persistent ID setup complete on index.html:', persistentId);
+            // =================== КОНЕЦ: ДОБАВЛЕННОГО БЛОКА ===================
             const form = document.getElementById('user-info-form');
 
             const normalizeName = (str) => {
@@ -257,6 +324,11 @@
                         position: document.getElementById('position').value.trim()
                     };
 
+                    // Проверка заполнения обязательных полей
+                    if (!userInfo.lastName || !userInfo.firstName || !userInfo.position) {
+                        alert('Пожалуйста, заполните все обязательные поля: Фамилия, Имя и Должность.');
+                        return;
+                    }
                     try {
                         localStorage.setItem('lastUserInfo', JSON.stringify(userInfo));
                     } catch (e) {

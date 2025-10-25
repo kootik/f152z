@@ -9,7 +9,6 @@
             const API_KEY = "{{ frontend_api_key|safe }}";
             console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
         </script>
-
     <style>
         :root {
             /* Colors */
@@ -628,6 +627,26 @@
 	
 	<script>
         document.addEventListener('DOMContentLoaded', () => {
+            // ================== НАЧАЛО: ИЗМЕНЕННЫЙ БЛОК ==================
+            // --- 1. ПРОВЕРКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (ЗАЩИТА) ---
+            let userInfo = null;
+            try {
+                const savedInfo = localStorage.getItem('lastUserInfo');
+                if (savedInfo) {
+                    userInfo = JSON.parse(savedInfo);
+                }
+            } catch (e) {
+                console.error("Could not read user info from localStorage", e);
+            }
+            // --- ЗАЩИТНАЯ ПРОВЕРКА ---
+            if (!userInfo || !userInfo.lastName || !userInfo.position) {
+                console.error("User info not found. Redirecting to login.");
+                // Укажите здесь корректный URL вашей главной страницы (index.html)
+                // Если index.html в корне, используйте "/"
+                window.location.href = '/'; 
+                return; // Останавливаем выполнение остального скрипта
+            }
+            // =================== КОНЕЦ: ИЗМЕНЕННОГО БЛОКА ===================
             // --- INITIALIZE PROCTORING SYSTEM ---
             let printAttempts = 0;
             let maxScrollDepth = 0;
@@ -658,10 +677,10 @@
                 try {
                     await fetch('/api/log_event', {
                         method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-API-Key': API_KEY
-                            },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': API_KEY
+                        },
                         body: JSON.stringify(payload)
                     });
                 } catch (error) {
@@ -675,7 +694,8 @@
             const watermark = document.getElementById('watermark');
             if (watermark) {
                 const date = new Date();
-                let watermarkText = `Учебный материал 117\nМинистерство Природных Ресурсов\n${date.toLocaleDateString('ru-RU')}`;
+                // Используем ФИО из 'userInfo', которое мы проверили
+                let watermarkText = `${userInfo.lastName} ${userInfo.firstName}\n${date.toLocaleDateString('ru-RU')}`;
                 if (persistentId) {
                     watermarkText = `Идентификатор: ${persistentId.slice(0, 13)}\n${watermarkText}`;
                 }
@@ -746,11 +766,7 @@
             window.addEventListener('beforeprint', handleBeforePrint);
 
             // --- LOG SESSION START ---
-            let userInfo = null;
-            try {
-                const savedInfo = localStorage.getItem('lastUserInfo');
-                if (savedInfo) userInfo = JSON.parse(savedInfo);
-            } catch (e) { console.warn('Could not read userInfo'); }
+            // 'userInfo' теперь гарантированно существует благодаря проверке вверху
             
             logEventToServer('study_started', { 
                 page: 'study-117',

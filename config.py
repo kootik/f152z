@@ -13,7 +13,7 @@ class Config:
     # ВАЖНО: В production всегда должен быть установлен через переменную окружения!
     SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(32).hex()
     SERVER_NAME = os.environ.get("SERVER_NAME")
-
+    PASSING_SCORE_THRESHOLD = int(os.environ.get('PASSING_SCORE_THRESHOLD', 80))
     # Путь, куда команда 'flask collect' будет складывать все статические файлы.
     # Этот путь должен совпадать с тем, что указан в docker-compose.yml для volume.
     STATIC_ROOT = "/app/static"

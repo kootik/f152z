@@ -1,8 +1,8 @@
-"""Enhance ApiKey model with usage stats and permissions
+"""Add status column to result_metadata
 
-Revision ID: a9b5741ecf06
+Revision ID: e4803a13d646
 Revises:
-Create Date: 2025-10-14 20:50:04.900482
+Create Date: 2025-10-25 15:45:12.143318
 
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "a9b5741ecf06"
+revision = "e4803a13d646"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -30,6 +30,7 @@ def upgrade():
         sa.Column("usage_count", sa.Integer(), nullable=True),
         sa.Column("rate_limit", sa.Integer(), nullable=True),
         sa.Column("allowed_endpoints", sa.JSON(), nullable=True),
+        sa.Column("is_admin", sa.Boolean(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("api_keys", schema=None) as batch_op:

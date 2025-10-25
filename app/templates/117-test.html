@@ -2669,13 +2669,14 @@
                         middleName: document.getElementById('middleName').value.trim(),
                         position: document.getElementById('position').value.trim()
                     };
-					try { localStorage.setItem('lastUserInfo', JSON.stringify(this.userInfo)); } catch (e) { console.warn('Could not save userInfo to localStorage.'); }
+                    try { localStorage.setItem('lastUserInfo', JSON.stringify(this.userInfo)); } catch (e) { console.warn('Could not save userInfo to localStorage.'); }
 
 
                     // ========== НАЧАЛО: ИЗМЕНЕНИЯ В STARTTEST ==========
                     // Логируем начало теста немедленно
                     await this.logEventToServer('test_started', {
-                        userInfo: this.userInfo
+                        userInfo: this.userInfo,
+                        persistentId: this.persistentId
                     });
 
                     // Активируем водяной знак
