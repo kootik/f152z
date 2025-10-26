@@ -14,13 +14,21 @@ def test_get_certificates_unauthorized(client):
 def test_get_certificates_as_admin_session(authenticated_client):
     response = authenticated_client.get("/api/get_certificates")
     assert response.status_code == 200
-    assert isinstance(json.loads(response.data), list)
+    data = json.loads(response.data)
+    assert isinstance(data, dict)
+    assert "certificates" in data
+    assert isinstance(data["certificates"], list)
+    assert "total" in data
 
 
 def test_get_certificates_as_admin_apikey(client, admin_api_headers):
     response = client.get("/api/get_certificates", headers=admin_api_headers)
     assert response.status_code == 200
-    assert isinstance(json.loads(response.data), list)
+    data = json.loads(response.data)
+    assert isinstance(data, dict)
+    assert "certificates" in data
+    assert isinstance(data["certificates"], list)
+    assert "total" in data
 
 
 def test_save_results_no_api_key(client):
