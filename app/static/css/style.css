@@ -1,5 +1,5 @@
 /* ================================================================= */
-/* НОВЫЕ СТИЛИ ИЗ `poe-preview.html` */
+/* НОВЫЕ СТИЛИ ИЗ `poe-preview.html` (И ВАШИ СУЩЕСТВУЮЩИЕ СТИЛИ) */
 /* ================================================================= */
 :root {
     --primary: #2563eb;
@@ -134,6 +134,8 @@ body {
 .user-menu {
     display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem;
     border-radius: 12px; cursor: pointer; transition: background 0.2s;
+    /* --- НОВОЕ --- */
+    position: relative; 
 }
 .user-menu:hover { background: var(--border); }
 .user-avatar {
@@ -161,12 +163,8 @@ body {
 .widget-title { font-size: 0.9rem; color: var(--text-light); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 .widget-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
 .widget-value { font-size: 2rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
-.widget-change {
-    display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem;
-    border-radius: 20px; font-size: 0.85rem; font-weight: 500;
-}
-.widget-change.positive { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-.widget-change.negative { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+/* --- ИЗМЕНЕНИЕ: Этот класс удален, так как он больше не используется --- */
+/* .widget-change { ... } */
 .widget-chart { margin-top: 1rem; height: 60px; }
 
 .filters-section {
@@ -210,6 +208,15 @@ body {
 }
 .data-table th:hover .sort-icon { opacity: 1; color: var(--primary); }
 .sort-icon { display: inline-block; margin-left: 0.5rem; opacity: 0.3; transition: var(--transition); }
+
+/* --- НОВОЕ: Стили для чекбокса "Выбрать все" --- */
+.data-table th input[type="checkbox"] {
+    display: block;
+    margin: 0 auto;
+    vertical-align: middle;
+    cursor: pointer;
+}
+/* --- КОНЕЦ НОВОГО БЛОКА --- */
 
 .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.2s; }
 .data-table tbody tr:hover { background: var(--light); }
@@ -1000,4 +1007,153 @@ body {
 @media (max-width: 768px) {
     .content-area { padding: 1rem; }
     .top-bar { padding: 1rem; }
+}
+/* ================================================================= */
+/* === НОВЫЕ СТИЛИ ДЛЯ ГЛОБАЛЬНОГО ПОИСКА И МЕНЮ ПОЛЬЗОВАТЕЛЯ === */
+/* ================================================================= */
+
+/* --- 1. Выпадающее меню Глобального Поиска --- */
+.global-search-results-list {
+    position: absolute;
+    top: calc(100% + 8px); /* 8px отступ от поля ввода */
+    left: 0;
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1001;
+    
+    /* Скрыто по умолчанию */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+.global-search-results-list.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.search-result-header {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+    text-transform: uppercase;
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+}
+.search-result-item:last-child {
+    border-bottom: none;
+}
+.search-result-item:hover {
+    background-color: var(--light);
+}
+
+.search-result-item .icon {
+    font-size: 1rem;
+    color: var(--text-light);
+}
+
+.search-result-item .info {
+    overflow: hidden;
+}
+
+.search-result-item .title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-item .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-light);
+}
+
+/* --- 2. Выпадающее меню Пользователя --- */
+/* (Предполагается, что вы добавите HTML в display_results.html) */
+.user-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 8px); /* 8px отступ от меню */
+    right: 0;
+    width: 220px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1001;
+    padding: 0.5rem;
+    
+    /* Скрыто по умолчанию */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+/* Показываем, когда .user-menu имеет класс .active */
+.user-menu.active .user-menu-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-menu-dropdown .user-info-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.5rem;
+}
+.user-menu-dropdown .user-info-header .user-name {
+    font-weight: 600;
+    color: var(--text);
+}
+.user-menu-dropdown .user-info-header .user-role {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+.user-menu-dropdown .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+.user-menu-dropdown .dropdown-item:hover {
+    background-color: var(--light);
+    color: var(--primary);
+}
+/* Красный цвет для кнопки "Выход" */
+.user-menu-dropdown .dropdown-item.logout:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
 }

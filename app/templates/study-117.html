@@ -616,7 +616,7 @@
         </div>
 
         <div class="navigation-buttons">
-            <a href="\" class="btn btn--secondary">← Назад на портал</a>
+            <a href="index-start" class="btn btn--secondary">← Назад на портал</a>
             <a href="117test" class="btn btn--primary">Перейти к тестированию →</a>
         </div>
     </div>
@@ -666,7 +666,22 @@
             };
             const persistentId = getCookie('persistentUserId_infosec'); // Get the user's persistent ID
 
-            // --- EVENT LOGGING FUNCTION ---
+            const getCsrfToken = () => {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) {
+                    return meta.getAttribute('content');
+                }
+                // Если нет, ищем в cookie (как в вашем логе)
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; csrf_token=`); // Убедитесь, что имя cookie верное
+                if (parts.length === 2) {
+                    return parts.pop().split(';').shift();
+                }
+                console.warn('CSRF token not found in meta or cookie');
+                return null;
+            };
+
+            // --- 👇 ЗАМЕНИТЕ ВАШУ logEventToServer НА ЭТУ 👇 ---
             const logEventToServer = async (eventType, details = {}) => {
                 const payload = {
                     sessionId: sessionId,
@@ -674,12 +689,20 @@
                     eventTimestamp: new Date().toISOString(),
                     details: details
                 };
+                // Получаем токен перед отправкой
+                const csrfToken = getCsrfToken();
+                if (!csrfToken) {
+                    console.error('CSRF Token is missing. Cannot log event.');
+                    // В реальной системе здесь можно показать ошибку пользователю
+                    return; 
+                }
                 try {
                     await fetch('/api/log_event', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-API-Key': API_KEY
+                            'X-API-Key': API_KEY,
+                            'X-CSRFToken': csrfToken // <-- ВОТ ИСПРАВЛЕНИЕ
                         },
                         body: JSON.stringify(payload)
                     });

@@ -33,7 +33,7 @@ def index():
 
 
 @web_bp.route("/117study")
-def show_117study_page():
+def study_117():  # <-- Имя функции стало чище
     """
     Отдает HTML-страницу для обучения по 117-ФЗ,
     передавая в нее API-ключ для фронтенда.
@@ -42,58 +42,58 @@ def show_117study_page():
     return render_template("study-117.html", frontend_api_key=frontend_api_key)
 
 
-@web_bp.route("/index2")
-def show_index2_page():
-    """Отдает альтернативную главную страницу."""
+@web_bp.route("/study")
+def study():
+    """Отдает HTML-страницу для общего обучения."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
-    return render_template("index2.html", frontend_api_key=frontend_api_key)
+    return render_template("study.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/results")
 @login_required
-def show_results_page():
+def results():
     """Отдает HTML-страницу для отображения результатов (требует аутентификации)."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
-    return render_template("display_results.html", frontend_api_key=frontend_api_key)
+    return render_template("results.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/152test")
-def show_152test_page():
+def test_152():  # <-- Имя функции стало чище
     """Отдает HTML-страницу для тестирования ПД-152."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
-    return render_template("studytest.html", frontend_api_key=frontend_api_key)
+    return render_template("152-test.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/117infographic")
-def show_117infographic_page():
+def infographic_117():  # <-- Имя функции стало чище
     """Отдает HTML-страницу с инфографикой для 117-ФЗ."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
     return render_template("infographic-117.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/152info")
-def show_152info_page():
+def info_152():  # <-- Имя функции стало чище
     """Отдает HTML-страницу с информацией по ПД-152."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
     return render_template("152info.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/117test")
-def show_117test_page():
+def test_117():  # <-- Имя функции стало чище
     """Отдает HTML-страницу для тестирования по 117-ФЗ."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
     return render_template("117-test.html", frontend_api_key=frontend_api_key)
 
 
-@web_bp.route("/study")
-def show_study_page():
+@web_bp.route("/study-152")
+def study_152():  # <-- Имя функции стало чище
     """Отдает HTML-страницу для общего обучения."""
     frontend_api_key = current_app.config.get("API_KEY_FRONTEND_CLIENT")
-    return render_template("study.html", frontend_api_key=frontend_api_key)
+    return render_template("study-152.html", frontend_api_key=frontend_api_key)
 
 
 @web_bp.route("/index-start")
-def show_index_start_page():
+def index_start():  # <-- Имя функции стало чище
     """Отдает стартовую главную страницу."""
     return render_template("index-start.html")
 
@@ -107,7 +107,7 @@ def show_index_start_page():
 def login():
     """Обрабатывает аутентификацию пользователей."""
     if current_user.is_authenticated:
-        return redirect(url_for("web.show_results_page"))
+        return redirect(url_for("web.results"))  # Стало: web.results
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -119,7 +119,9 @@ def login():
 
         login_user(user, remember=form.remember_me.data)
 
-        next_page = request.args.get("next") or url_for("web.show_results_page")
+        next_page = request.args.get("next") or url_for(
+            "web.results"
+        )  # Стало: web.results
         return redirect(next_page)
 
     return render_template("login.html", form=form)

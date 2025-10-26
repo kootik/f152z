@@ -13,7 +13,8 @@ import {
     abandonedSessionsSortKey, 
     abandonedSessionsSortDir, 
     setAbandonedSessionsSort,
-    mainResultsSortKey, mainResultsSortDir, setMainResultsSort
+    mainResultsSortKey, mainResultsSortDir, setMainResultsSort,
+    dashboardStats // <-- НОВЫЙ ИМПОРТ
 } from './state.js';
 import apiClient from './api.js';
 import * as analysis from './analysis.js';
@@ -59,11 +60,27 @@ export function switchView(viewName) {
 
     switch (viewName) {
         case 'dashboard':
+            // apiClient.loadInitialData(currentPage); // <- Это вызывается только если мы НАЖАЛИ на кнопку
+            // Если мы переключились с другой вкладки, нужно просто перерисовать
+            // виджеты и таблицу на основе уже загруженных данных
+            if (allLoadedResults.size > 0) {
+                renderDashboardWidgets(dashboardStats);
+                renderDataTable(Array.from(allLoadedResults.values()));
+                renderPaginationControls();
+                applyFiltersAndRender(); // Применяем текущие фильтры
+            } else {
             apiClient.loadInitialData(currentPage);
-            // Графики будут отрисованы автоматически через renderDashboardWidgets
+            }
             break;
         case 'comparison':
             renderComparisonUserList(Array.from(allLoadedResults.values()));
+            // Также обновляем состояние кнопки "Анализ"
+            const analysisBtn = document.getElementById('detailedAnalysisBtn');
+            if (analysisBtn) {
+                // Кнопка активна, если выбрано > 0 (для одиночного) или > 1 (для DTW)
+                // Сделаем > 0, т.к. одиночный анализ тоже полезен
+                analysisBtn.disabled = selectedForComparison.size < 1; 
+            }
             break;
         case 'abandoned':
             apiClient.loadAndRenderAbandonedSessions();
@@ -181,14 +198,17 @@ export function applyFiltersAndRender() {
     const lastName = document.getElementById('lastNameFilter').value.toLowerCase();
     const firstName = document.getElementById('firstNameFilter').value.toLowerCase();
     const fingerprint = document.getElementById('fingerprintFilter').value;
-
+    
+    // sourceData - это allLoadedResults, который УЖЕ отфильтрован сервером по статусу.
     const sourceData = Array.from(allLoadedResults.values());
 
     const filtered = sourceData.filter(result => {
         const ui = result.userInfo || {};
         const lastNameMatch = !lastName || (ui.lastName && ui.lastName.toLowerCase().includes(lastName));
         const firstNameMatch = !firstName || (ui.firstName && ui.firstName.toLowerCase().includes(firstName));
-        const fingerprintMatch = !fingerprint || result.fingerprintHash === fingerprint;
+        const fingerprintMatch = !fingerprint || (result.fingerprintHash && result.fingerprintHash === fingerprint);
+        
+        // Клиентская проверка `statusMatch` УДАЛЕНА, т.к. она избыточна
         return lastNameMatch && firstNameMatch && fingerprintMatch;
     });
     
@@ -239,44 +259,59 @@ function createSafeText(text) {
 // РЕНДЕРИНГ - ДАШБОРД (НОВЫЙ ДИЗАЙН)
 // =============================================================================
 
-export function renderDashboardWidgets() {
+export function renderDashboardWidgets(stats) {
     const container = document.getElementById('dashboard-widgets');
     if (!container) return;
     
-    const resultsData = Array.from(allLoadedResults.values());
-    const avgScore = resultsData.length ? Math.round(resultsData.reduce((sum, r) => sum + r.testResults.percentage, 0) / resultsData.length) : 0;
-    const anomaliesCount = resultsData.filter(r => 
-        (r.sessionMetrics.totalFocusLoss > settings.focusThreshold) ||
-        (r.sessionMetrics.totalBlurTime > settings.blurThreshold) ||
-        (r.sessionMetrics.printAttempts > settings.printThreshold)
-    ).length;
-    const uniqueUsers = new Set(resultsData.map(r => `${r.userInfo.lastName}${r.userInfo.firstName}`)).size;
+    // Вспомогательная функция для форматирования % изменения
+    const formatChange = (change) => {
+        if (change === null || change === undefined) {
+            return '<div class="widget-change"><span></span><span>-</span></div>';
+        }
+        if (change === 0) {
+            return '<div class="widget-change"><span></span><span>Без изменений</span></div>';
+        }
+        const direction = change > 0 ? 'positive' : 'negative';
+        const icon = change > 0 ? '↑' : '↓';
+        return `<div class="widget-change ${direction}"><span>${icon}</span><span>${Math.abs(change)}% за неделю</span></div>`;
+    };
+
+    // Если статистика не загрузилась, показываем заглушки
+    if (!stats) {
+        container.innerHTML = `
+            <div class="widget"><div class="widget-header"><div class="widget-title">Завершено тестов</div></div><div class="widget-value">...</div></div>
+            <div class="widget"><div class="widget-header"><div class="widget-title">Средний балл</div></div><div class="widget-value">...</div></div>
+            <div class="widget"><div class="widget-header"><div class="widget-title">Обнаружено аномалий</div></div><div class="widget-value">...</div></div>
+            <div class="widget"><div class="widget-header"><div class="widget-title">Уникальных пользователей</div></div><div class="widget-value">...</div></div>
+        `;
+        return;
+    }
 
     container.innerHTML = `
         <div class="widget">
-            <div class="widget-header"><div class="widget-title">Загружено тестов</div><div class="widget-icon" style="background: rgba(37, 99, 235, 0.1); color: var(--primary);">📊</div></div>
-            <div class="widget-value">${resultsData.length} <span style="font-size: 1rem; color: var(--text-light);">из ${totalResults}</span></div>
-            <div class="widget-change positive"><span>↑</span><span>12.5% за неделю</span></div>
+            <div class="widget-header"><div class="widget-title">Завершено тестов</div><div class="widget-icon" style="background: rgba(37, 99, 235, 0.1); color: var(--primary);">📊</div></div>
+            <div class="widget-value">${stats.totalTests.value}</div>
+            ${formatChange(stats.totalTests.change)}
         </div>
         <div class="widget">
             <div class="widget-header"><div class="widget-title">Средний балл</div><div class="widget-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">📈</div></div>
-            <div class="widget-value">${avgScore}%</div>
-            <div class="widget-change positive"><span>↑</span><span>3.2% улучшение</span></div>
+            <div class="widget-value">${stats.avgScore.value}%</div>
+            ${formatChange(stats.avgScore.change)}
         </div>
         <div class="widget">
             <div class="widget-header"><div class="widget-title">Обнаружено аномалий</div><div class="widget-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">🚨</div></div>
-            <div class="widget-value">${anomaliesCount}</div>
-            <div class="widget-change negative"><span>↓</span><span>8.3% снижение</span></div>
+            <div class="widget-value">${stats.anomaliesCount.value}</div>
+            ${formatChange(stats.anomaliesCount.change)}
         </div>
         <div class="widget">
             <div class="widget-header"><div class="widget-title">Уникальных пользователей</div><div class="widget-icon" style="background: rgba(124, 58, 237, 0.1); color: var(--secondary);">👥</div></div>
-            <div class="widget-value">${uniqueUsers}</div>
-            <div class="widget-change positive"><span>↑</span><span>24 новых сегодня</span></div>
+            <div class="widget-value">${stats.uniqueUsers.value}</div>
+            ${formatChange(stats.uniqueUsers.change)}
         </div>
     `;
-
-    // Рендерим графики сразу после виджетов
-    renderDashboardCharts();
+    // Графики дашборда теперь должны вызываться из `loadInitialData` в `api.js`,
+    // так как им нужны `allLoadedResults`, а не `stats`.
+    // Оставляем вызов здесь, если `loadInitialData` вызывается ПЕРЕД `fetchDashboardStats`.
 }
 
 /**
@@ -295,99 +330,102 @@ export function renderDashboardCharts() {
 
     const resultsArray = Array.from(allLoadedResults.values());
     
+    // --- 👇 НОВЫЙ КОД: ФИЛЬТРАЦИЯ ДАННЫХ ДЛЯ ГРАФИКА 👇 ---
+    // Оставляем только те оценки, которые идут "в зачет"
+    const acceptedGrades = ['Отлично', 'Хорошо']; // <-- Добавьте сюда 'Удовлетворительно', если "3" тоже считается зачетом
+    
+    const filteredResults = resultsArray.filter(r => 
+        r.testResults.grade && acceptedGrades.includes(r.testResults.grade.text)
+    );
+    // --- 👆 КОНЕЦ НОВОГО КОДА 👆 ---
+
     const gradesCtx = document.getElementById('dashboardGradesChart')?.getContext('2d');
     if (gradesCtx) {
-        if (resultsArray.length === 0) {
-            // ... (код для случая "нет данных" остается без изменений)
+        
+        // --- ИЗМЕНЕНИЕ: Проверяем отфильтрованный массив ---
+        if (filteredResults.length === 0) {
             gradesCtx.clearRect(0, 0, gradesCtx.canvas.width, gradesCtx.canvas.height);
             gradesCtx.font = "16px Arial";
             gradesCtx.fillStyle = "var(--text-light)";
             gradesCtx.textAlign = "center";
-            gradesCtx.fillText("Нет данных для отображения", gradesCtx.canvas.width/2, gradesCtx.canvas.height/2);
-            return;
-        }
-        
-        const gradesCounts = resultsArray.reduce((acc, r) => {
-            const gradeText = r.testResults.grade.text; // Теперь здесь "Отлично", "Хорошо" и т.д.
-            acc[gradeText] = (acc[gradeText] || 0) + 1;
-            return acc;
-        }, {});
+            // --- ИЗМЕНЕНИЕ: Текст сообщения ---
+            gradesCtx.fillText("Нет 'зачетных' результатов (4 и 5) для отображения", gradesCtx.canvas.width/2, gradesCtx.canvas.height/2);
+            // (Если вы сбросите фильтры, а "5" все равно не появится, 
+            //  значит, она не попала в allLoadedResults)
+        } else {
+            
+            // --- ИЗМЕНЕНИЕ: Считаем на основе отфильтрованного массива ---
+            const gradesCounts = filteredResults.reduce((acc, r) => {
+                const gradeText = r.testResults.grade.text;
+                acc[gradeText] = (acc[gradeText] || 0) + 1;
+                return acc;
+            }, {});
 
-        const gradeLabels = Object.keys(gradesCounts);
-        const gradeData = Object.values(gradesCounts);
-        
-        // НОВОЕ: Более яркие и согласованные цвета
-        const gradeColors = {
-            'Отлично': 'hsla(145, 63%, 42%, 1)',
-            'Хорошо': 'hsla(221, 83%, 53%, 1)',
-            'Удовлетворительно': 'hsla(39, 92%, 56%, 1)',
-            'Неудовлетворительно': 'hsla(0, 84%, 60%, 1)',
-        };
-        
-        const backgroundColors = gradeLabels.map(label => gradeColors[label] || '#94a3b8');
+            const gradeLabels = Object.keys(gradesCounts);
+            const gradeData = Object.values(gradesCounts);
+            
+            const gradeColors = {
+                'Отлично': 'hsla(145, 63%, 42%, 1)',
+                'Хорошо': 'hsla(221, 83%, 53%, 1)',
+                'Удовлетворительно': 'hsla(39, 92%, 56%, 1)', // (На всякий случай, если добавите)
+            };
+            
+            const backgroundColors = gradeLabels.map(label => gradeColors[label] || '#94a3b8');
 
-        charts['dashboardGrades'] = new Chart(gradesCtx, {
-            type: 'doughnut',
-            data: {
-                labels: gradeLabels,
-                datasets: [{
-                    label: 'Количество',
-                    data: gradeData,
-                    backgroundColor: backgroundColors,
-                    // НОВОЕ: Стили для красоты
-                    borderColor: '#fff',
-                    borderWidth: 3,
-                    borderRadius: 8, // Скругляет углы сегментов
-                    hoverOffset: 15    // Увеличивает сегмент при наведении
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%', // Делает "бублик" тоньше
-                plugins: {
-                    // НОВОЕ: Добавляем заголовок прямо в график
-                    title: {
-                        display: true,
-                        text: 'Соотношение оценок',
-                        padding: {
-                            top: 10,
-                            bottom: 10
+            charts['dashboardGrades'] = new Chart(gradesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: gradeLabels,
+                    datasets: [{
+                        label: 'Количество',
+                        data: gradeData,
+                        backgroundColor: backgroundColors,
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        borderRadius: 8, 
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%', 
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Соотношение зачетных оценок (4 и 5)', // <-- ИЗМЕНЕННЫЙ ЗАГОЛОВОК
+                            padding: { top: 10, bottom: 10 },
+                            font: { size: 16, weight: '600' },
+                            color: 'var(--text)'
                         },
-                        font: {
-                            size: 16,
-                            weight: '600'
+                        legend: {
+                            position: 'right', 
+                            labels: {
+                                padding: 20,
+                                font: { size: 14 },
+                                color: 'var(--text-light)',
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
                         },
-                        color: 'var(--text)'
-                    },
-                    legend: {
-                        position: 'right', // Легенда справа выглядит лучше
-                        labels: {
-                            padding: 20,
-                            font: { size: 14 },
-                            color: 'var(--text-light)',
-                            usePointStyle: true, // Используем кружки вместо квадратов
-                            pointStyle: 'circle'
-                        }
-                    },
-                    tooltip: {
-                        // НОВОЕ: Улучшаем внешний вид подсказок
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        titleFont: { size: 14, weight: 'bold' },
-                        bodyFont: { size: 12 },
-                        padding: 10,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function(context) {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                return ` ${context.label}: ${context.parsed} (${percentage}%)`;
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return ` ${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
     // 2. График активности по времени
@@ -403,8 +441,10 @@ export function renderDashboardCharts() {
         }
 
         const dailyActivity = resultsArray.reduce((acc, r) => {
+            if (r.sessionMetrics && r.sessionMetrics.startTime) {
             const date = new Date(r.sessionMetrics.startTime).toLocaleDateString('ru-RU');
             acc[date] = (acc[date] || 0) + 1;
+            }
             return acc;
         }, {});
 
@@ -432,41 +472,12 @@ export function renderDashboardCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                },
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
-                            precision: 0
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
+                    y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                    x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45 } }
                 },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                }
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
             }
         });
     }
@@ -482,6 +493,7 @@ export function renderDataTable(results) {
         return `<th data-sort="${sortKey}">${label} <span class="sort-icon">${icon}</span></th>`;
     };
 
+    const selectAllCheckbox = `<th style="width: 50px;"><input type="checkbox" id="selectAllRows"></th>`;
     const tableRows = results.length > 0 
         ? results.map(createTableRowHTML).join('') 
         : '<tr><td colspan="9" class="loading">Результаты не найдены.</td></tr>';
@@ -491,8 +503,7 @@ export function renderDataTable(results) {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th style="width: 50px;"><input type="checkbox" id="selectAllRows"></th>
-                        ${createHeader('Пользователь', 'userInfo.lastName')}
+                        ${selectAllCheckbox} ${createHeader('Пользователь', 'userInfo.lastName')}
                         ${createHeader('Тест', 'testType')}
                         ${createHeader('Дата', 'sessionMetrics.startTime')}
                         ${createHeader('IP Адрес', 'clientIp')}
@@ -527,7 +538,7 @@ function createTableRowHTML(result) {
     const duration = sm.endTime && sm.startTime ? `${Math.round((new Date(sm.endTime) - new Date(sm.startTime)) / 1000 / 60)} мин` : 'N/A';
     
     return `
-    <tr>
+    <tr data-session-id="${escapeHtml(result.sessionId)}">
         <td><input type="checkbox" class="row-checkbox" data-session-id="${escapeHtml(result.sessionId)}"></td>
         <td>
             <div class="user-cell">
@@ -538,7 +549,7 @@ function createTableRowHTML(result) {
             </div>
         </td>
         <td>${createSafeText(result.testType)}</td>
-        <td>${new Date(sm.startTime).toLocaleString('ru-RU')}</td>
+        <td>${sm.startTime ? new Date(sm.startTime).toLocaleString('ru-RU') : 'N/A'}</td>
         
         <td>${createSafeText(result.clientIp || 'N/A')}</td>
 
@@ -997,7 +1008,8 @@ function getDetailsForEvent(event, isAnomaly, uniqueIPs) {
 export function renderComparisonUserList(results) {
     const listContainer = document.getElementById('comparison-user-list');
     if (!listContainer) return;
-    listContainer.innerHTML = results.map(result => {
+    const completedResults = results.filter(r => r.testResults.percentage > 0 && r.sessionMetrics.endTime);
+    listContainer.innerHTML = completedResults.map(result => {
         const isSelected = selectedForComparison.has(result.sessionId);
         const ui = result.userInfo || {};
         return `<div class="comparison-list-card ${isSelected ? 'selected' : ''}" data-session-id="${escapeHtml(result.sessionId)}">
@@ -1350,17 +1362,109 @@ export function renderBehaviorAnalysis(sessions) {
     container.innerHTML = sessions.map(s => `<div class="behavior-card"><h4>${createSafeText(s.userInfo.lastName)} ${createSafeText(s.userInfo.firstName)}</h4><p>${createSafeText(s.reason)}</p></div>`).join('');
 }
 
-export function renderCertificatesTable(certificates) {
+export function renderCertificatesTable(data) { // 1. Принимаем 'data' (объект)
     const container = document.getElementById('registry-container');
+    // 2. Извлекаем массив из объекта
+    const certificates = data.certificates || []; 
     if (certificates.length === 0) {
-        container.innerHTML = '<p>Аттестатов не найдено.</p>';
+        container.innerHTML = '<p style="text-align:center; color: var(--text-light);">Аттестатов не найдено.</p>';
+        // 5. Вызываем рендер пагинации, даже если пусто, чтобы показать "0 из 0"
+        renderRegistryPaginationControls(data.page, data.per_page, data.total);
         return;
     }
-    const tableRows = certificates.map(c => `<tr><td>${createSafeText(c.document_number)}</td><td>${createSafeText(c.user_fullname)}</td><td>${createSafeText(c.test_type)}</td><td>${new Date(c.issue_date).toLocaleDateString('ru-RU')}</td><td>${c.score_percentage}%</td></tr>`).join('');
-    container.innerHTML = `<table class="comparison-table"><thead><tr><th>Номер</th><th>ФИО</th><th>Тест</th><th>Дата</th><th>Результат</th></tr></thead><tbody>${tableRows}</tbody></table>`;
+    
+    // 3. Рендерим строки таблицы
+    const tableRows = certificates.map(c => `
+        <tr>
+            <td>${createSafeText(c.document_number)}</td>
+            <td>${createSafeText(c.user_fullname)}</td>
+            <td>${createSafeText(c.test_type)}</td>
+            <td>${new Date(c.issue_date).toLocaleDateString('ru-RU')}</td>
+            <td>${c.score_percentage}%</td>
+        </tr>`).join('');
+    
+    // 4. Добавляем контейнер для пагинации
+    container.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Номер</th>
+                        <th>ФИО</th>
+                        <th>Тест</th>
+                        <th>Дата</th>
+                        <th>Результат</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+        <div id="registry-pagination-container"></div> `;
+    
+    // 5. Вызываем рендер пагинации, передавая данные
+    renderRegistryPaginationControls(data.page, data.per_page, data.total);
 }
+// --- 👆 КОНЕЦ ИЗМЕНЕННОЙ ФУНКЦИИ 👆 ---
+/**
+ * Renders pagination controls specifically for the Certificates Registry.
+ */
+function renderRegistryPaginationControls(page, perPage, total) {
+    const container = document.getElementById('registry-pagination-container');
+    if (!container) return;
 
-// =============================================================================
+    // Если total не 0, но меньше perPage, просто показываем инфо
+    if (total > 0 && total <= perPage) {
+        container.innerHTML = `<div class="pagination-info" style="border-top: 1px solid var(--border); margin-top: 1.5rem; padding-top: 1rem;">Показаны все ${total} записей</div>`;
+        return;
+    }
+    
+    // Если total 0, ничего не показываем
+    if (total === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const totalPages = Math.ceil(total / perPage);
+    
+    let pagesHtml = '';
+    const pagesToShow = new Set();
+    pagesToShow.add(1);
+    pagesToShow.add(totalPages);
+    for (let i = -2; i <= 2; i++) {
+        const p = page + i;
+        if (p > 1 && p < totalPages) pagesToShow.add(p);
+    }
+    
+    const sortedPages = Array.from(pagesToShow).sort((a,b)=>a-b);
+    let lastPage = 0;
+    sortedPages.forEach(p => {
+        if(lastPage > 0 && p > lastPage + 1) {
+            // Используем уникальный класс 'registry-page-btn'
+            pagesHtml += `<button class="page-btn ellipsis" disabled>...</button>`; 
+        }
+        // Используем уникальный класс 'registry-page-btn'
+        pagesHtml += `<button class="page-btn registry-page-btn ${page === p ? 'active' : ''}" data-page="${p}">${p}</button>`; 
+        lastPage = p;
+    });
+
+    const startItem = (page - 1) * perPage + 1;
+    const endItem = Math.min(startItem + perPage - 1, total);
+
+    container.innerHTML = `
+        <div class="pagination">
+            <div class="pagination-info">Показано ${startItem} - ${endItem} из ${total}</div>
+            <div class="pagination-controls">
+                <button class="page-btn registry-page-btn" ${page === 1 ? 'disabled' : ''} data-page="${page - 1}">‹ Пред.</button>
+                ${pagesHtml}
+                <button class="page-btn registry-page-btn" ${page === totalPages ? 'disabled' : ''} data-page="${page + 1}">След. ›</button>
+            </div>
+        </div>
+    `;
+}
+// --- 👆 КОНЕЦ НОВОЙ ФУНКЦИИ 👆 ---
+
 // СТАТИСТИКА
 // =============================================================================
 
@@ -1566,7 +1670,8 @@ export function toggleComparisonSelection(cardElement) {
     // 3. Включаем или выключаем кнопку анализа
     const analysisBtn = document.getElementById('detailedAnalysisBtn');
     if (analysisBtn) {
-        analysisBtn.disabled = selectedForComparison.size < 2;
+        // --- ИСПРАВЛЕНИЕ: Кнопка активна, если выбрана хотя бы ОДНА сессия ---
+        analysisBtn.disabled = selectedForComparison.size < 1;
     }
 }
 // Вставьте эту новую функцию в ui.js
@@ -1589,4 +1694,69 @@ function createSingleUserFingerprintView(result) {
     }
     html += '</dl>';
     return html;
+}
+
+
+/**
+ * NEW: Renders the dropdown for global search results.
+ * @param {object} results - The search results object { users: [], sessions: [] }.
+ */
+export function renderGlobalSearchResults(results) {
+    let container = document.getElementById('global-search-results');
+    const searchInput = document.getElementById('globalSearch');
+    
+    // Создаем контейнер, если его нет
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'global-search-results';
+        container.className = 'global-search-results-list';
+        searchInput.parentElement.appendChild(container);
+
+        // Добавляем слушатель, чтобы закрыть результаты при клике вне (перенесено в main.js)
+    }
+
+    let html = '';
+
+    if (results.users.length > 0) {
+        html += '<div class="search-result-header">Пользователи</div>';
+        html += results.users.map(user => `
+            <a href="#" class="search-result-item user-profile-link" data-lastname="${escapeHtml(user.name.split(' ')[0])}" data-firstname="${escapeHtml(user.name.split(' ')[1] || '')}">
+                <div class="icon">👤</div>
+                <div class="info">
+                    <div class="title">${createSafeText(user.name)}</div>
+                    <div class="subtitle">${createSafeText(user.position)}</div>
+                </div>
+            </a>
+        `).join('');
+    }
+
+    if (results.sessions.length > 0) {
+        html += '<div class="search-result-header">Сессии</div>';
+        html += results.sessions.map(session => `
+            <a href="#" class="search-result-item single-analysis-btn" data-session-id="${escapeHtml(session.id)}">
+                <div class="icon">📊</div>
+                <div class="info">
+                    <div class="title">${createSafeText(session.id.slice(0, 18))}...</div>
+                    <div class="subtitle">${createSafeText(session.type)} - ${new Date(session.date).toLocaleString('ru-RU')}</div>
+                </div>
+            </a>
+        `).join('');
+    }
+
+    if (html === '') {
+        html = '<div class="search-result-empty">Ничего не найдено.</div>';
+    }
+
+    container.innerHTML = html;
+    container.classList.add('active');
+}
+
+/**
+ * NEW: Hides the global search results dropdown.
+ */
+export function hideGlobalSearchResults() {
+    const container = document.getElementById('global-search-results');
+    if (container) {
+        container.classList.remove('active');
+    }
 }

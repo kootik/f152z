@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <title>Система Комплексного Анализа Тестирования v3.0</title>
+    <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>    
+    <!-- Подключаем Chart.js для графиков -->
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+
+</head>
+<body>
+    <!-- NEW: Оверлей загрузки -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div>
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Загрузка данных...</div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">📊</div>
+                    <span class="logo-text">TestAnalytics v3</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <div class="nav-section">
+                    <div class="nav-section-title">Анализ</div>
+                    <a class="nav-item active" data-view="dashboard">
+                        <span class="nav-item-icon">🏠</span><span class="nav-item-text">Дашборд</span>
+                    </a>
+                    <a class="nav-item" data-view="comparison">
+                        <span class="nav-item-icon">🔍</span><span class="nav-item-text">Детальное сравнение</span>
+                    </a>
+                    <a class="nav-item" data-view="abandoned">
+                        <span class="nav-item-icon">🚫</span><span class="nav-item-text">Прерванные сессии</span>
+                    </a>
+                    <a class="nav-item" data-view="behavior">
+                        <span class="nav-item-icon">🧠</span><span class="nav-item-text">Поведенческий анализ</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Отчеты</div>
+                     <a class="nav-item" data-view="registry">
+                        <span class="nav-item-icon">📜</span><span class="nav-item-text">Реестр аттестатов</span>
+                    </a>
+                    <a class="nav-item" data-view="statistics">
+                        <span class="nav-item-icon">📈</span><span class="nav-item-text">Сводный отчет</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <button class="menu-toggle" id="menuToggle">☰</button>
+                    <nav class="breadcrumbs" id="breadcrumbs">
+                        </nav>
+                </div>
+                <div class="top-bar-right">
+                    <div class="search-container">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="search-input" placeholder="Глобальный поиск (Ctrl+K)..." id="globalSearch">
+                    </div>
+                    <button class="notification-btn" id="notificationBtn">
+                        🔔
+                        <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+                    </button>
+					<div class="user-menu" id="userMenu">
+					    <div class="user-avatar">АИ</div>
+					    <div class="user-info">
+					        <div class="user-name">Администратор</div>
+					        <div class="user-role">Главный аналитик</div>
+					    </div>
+					    <span>▼</span>
+
+					    <div class="user-menu-dropdown">
+					        <div class="user-info-header">
+					            <div class="user-name">Администратор</div>
+					            <div class="user-role">admin@example.com</div>
+					        </div>
+        
+					        <a href="#" class="dropdown-item" id="openSettingsBtn">
+					            <span>⚙️</span> Настройки
+					        </a>
+        
+					        <hr style="border: none; border-top: 1px solid var(--border); margin: 0.5rem 0;">
+					        <a href="/logout" class="dropdown-item logout"> 
+					            <span>🚪</span> Выход
+					        </a>
+					    </div>
+					    </div>
+            </header>
+
+            <div class="content-area">
+                <div id="dashboard-view">
+                    <div class="dashboard-grid" id="dashboard-widgets">
+                        </div>
+
+                    <div class="dashboard-charts-section" style="margin-top: 2rem;">
+                        <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                            <div class="chart-card">
+                                <h3 style="margin-bottom: 1rem; color: var(--text);">📊 Распределение оценок</h3>
+                                <div style="position: relative; height: 300px;">
+                                    <canvas id="dashboardGradesChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-card">
+                                <h3 style="margin-bottom: 1rem; color: var(--text);">📈 Активность по времени</h3>
+                                <div style="position: relative; height: 300px;">
+                                    <canvas id="dashboardActivityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filters-section">
+                        <div class="filters-header">
+                            <h2 class="filters-title">Фильтры и поиск</h2>
+								<div class="load-options-dropdown">
+									<span class="load-options-label">Показывать по:</span>
+									<button class="dropdown-toggle" id="loadOptionsToggle">
+										<span id="selectedValue">20</span>
+										<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+											<path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+										</svg>
+									</button>
+									<div class="dropdown-menu" id="loadOptionsMenu">
+										<a href="#" class="dropdown-item" data-count="20">20</a>
+										<a href="#" class="dropdown-item" data-count="50">50</a>
+										<a href="#" class="dropdown-item" data-count="100">100</a>
+										<a href="#" class="dropdown-item" data-count="200">200</a>
+										<a href="#" class="dropdown-item" data-count="300">300</a>
+										<a href="#" class="dropdown-item" data-count="400">400</a>
+										<a href="#" class="dropdown-item" data-count="all">Все</a>
+									</div>
+								</div>
+                            <div class="filter-presets">
+                                <button class="preset-btn active" data-preset="all">Все данные</button>
+                                <button class="preset-btn" data-preset="today">Сегодня</button>
+                                <button class="preset-btn" data-preset="week">Эта неделя</button>
+                                <button class="preset-btn" data-preset="anomalies">С аномалиями</button>
+                            </div>
+                        </div>
+                        <div class="filters-content">
+                            <div class="filter-group">
+                                <label for="lastNameFilter" class="filter-label">Фамилия:</label>
+                                <input type="text" id="lastNameFilter" class="filter-input" placeholder="Введите фамилию">
+                            </div>
+                            <div class="filter-group">
+                                <label for="firstNameFilter" class="filter-label">Имя:</label>
+                                <input type="text" id="firstNameFilter" class="filter-input" placeholder="Введите имя">
+                            </div>
+                            <div class="filter-group">
+                                <label for="fingerprintFilter" class="filter-label">Группа отпечатков:</label>
+                                <select id="fingerprintFilter" class="filter-select"><option value="">Все группы</option></select>
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Статус</label>
+                                <select id="statusFilter" class="filter-select">
+                                    <option value="">Все статусы</option>
+                                    <option value="completed">Завершен</option>
+                                    <option value="in_progress">В процессе</option>
+                                    <option value="abandoned">Прерван</option>
+                                </select>
+                            </div>
+                        </div>
+                         <div class="filter-actions">
+                            <button class="btn btn-primary" id="analyzeFingerprintBtn">🔐 Анализ Fingerprint</button>
+                            <button class="btn btn-primary" id="analyzeMouseBtn">🖱️ Анализ движений мыши</button>
+                            <button class="btn btn-primary" id="analyzeFocusBtn">👁️ Анализ нарушений</button>
+                            <button class="btn btn-secondary" id="resetFiltersBtn">🔄 Сбросить</button>
+                        </div>
+                    </div>
+                    <div id="anomaly-reports"></div>
+
+                    <div class="data-table-container">
+					    <div class="table-header">
+					        <h2 class="table-title">Результаты тестов</h2>
+					        <div class="table-actions">
+					            <button class="btn btn-primary" id="exportBtn">📤 Экспорт</button>
+					        </div>
+					    </div>
+    
+					    <div id="results-container">
+					        <div class="loading">Загрузка...</div>
+					    </div>
+					</div>
+					<div id="pagination-container"></div>
+
+
+                </div> <div id="comparison-view" class="hidden">
+                     <div class="comparison-container">
+                        <div class="comparison-list-panel">
+                            <h3 style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); margin:0;">Выберите пользователей</h3>
+                            <div class="panel-content" id="comparison-user-list"></div>
+                            <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); margin-top: auto;">
+                                <button class="btn btn-primary" id="detailedAnalysisBtn" style="width: 100%;" disabled>🔬 Провести анализ</button>
+                                <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="serverAnalysisToggle" style="transform: scale(1.2);"><label for="serverAnalysisToggle" style="font-size: 0.9rem; color: var(--text-light); cursor: pointer;">Глубокий анализ на сервере (DTW)</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="comparison-analysis-panel" id="comparison-results-panel">
+                            <div class="comparison-analysis-placeholder"><h4>Панель анализа</h4><p>Выберите двух или более пользователей из списка слева и нажмите "Провести анализ".</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="abandoned-view" class="hidden">
+                    <div class="chart-container">
+                        <p style="text-align: center; color: var(--text-light); margin-top: -1.5rem; margin-bottom: 1.5rem;">Здесь показаны сессии, которые были начаты, но не были завершены. Это может указывать на технические проблемы или попытку кражи вопросов.</p>
+                        <div class="abandoned-filters" id="abandoned-filters">
+                            <button class="filter-btn active" data-filter="all">Все</button>
+                            <button class="filter-btn" data-filter="test">Только тесты</button>
+                            <button class="filter-btn" data-filter="study">Только обучение</button>
+                        </div>
+                        <div id="abandoned-sessions-container"><div class="loading">Загрузка прерванных сессий...</div></div>
+                    </div>
+                </div>
+
+                <div id="behavior-view" class="hidden">
+                    <div class="chart-container">
+                        <p style="text-align: center; color: var(--text-light); margin-top: -1.5rem; margin-bottom: 1.5rem;">Система автоматически выявляет тесты, пройденные с аномально высокой скоростью и результатом при отсутствии предварительного обучения.</p>
+                        <div id="behavior-analysis-container"><div class="loading">Выполнение анализа...</div></div>
+                    </div>
+                </div>
+
+                <div id="registry-view" class="hidden">
+                    <div class="chart-container">
+                        <div id="registry-container"><div class="loading">Загрузка реестра...</div></div>
+                    </div>
+                </div>
+
+                <div id="statistics-view" class="hidden">
+                    <div class="stats-overview">
+                        <div class="stat-card"><div class="stat-value" id="totalTests">0</div><div class="stat-label">Всего тестов</div></div>
+                        <div class="stat-card"><div class="stat-value" id="averageScore">0%</div><div class="stat-label">Средний балл</div></div>
+                        <div class="stat-card"><div class="stat-value" id="anomaliesCount">0</div><div class="stat-label">Обнаружено аномалий</div></div>
+                        <div class="stat-card"><div class="stat-value" id="uniqueUsers">0</div><div class="stat-label">Уникальных пользователей</div></div>
+                    </div>
+                    <div class="chart-container"><h3 class="chart-title">Распределение оценок</h3><canvas id="gradesChart"></canvas></div>
+                    <div class="chart-container"><h3 class="chart-title">Активность по дням</h3><canvas id="activityChart"></canvas></div>
+                    <div class="chart-container"><h3 class="chart-title">Топ-5 пользователей по аномалиям</h3><canvas id="anomaliesChart"></canvas></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="notifications-panel" id="notificationsPanel">
+        <div class="notifications-header"><h3 class="notifications-title">Уведомления</h3></div>
+        <div class="notifications-list" id="notificationsList">
+            </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 class="modal-title">⚙️ Настройки анализа</h3><button class="close-btn" id="closeSettingsBtn">&times;</button></div>
+            <div style="display: grid; gap: 1rem;">
+                <div style="display:flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--light); border-radius: 8px;"><label for="focusThreshold">Порог потери фокуса:</label><input type="number" id="focusThreshold" class="filter-input" style="width: 80px;"></div>
+                <div style="display:flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--light); border-radius: 8px;"><label for="blurThreshold">Порог времени вне фокуса (сек):</label><input type="number" id="blurThreshold" class="filter-input" style="width: 80px;"></div>
+                <div style="display:flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--light); border-radius: 8px;"><label for="mouseThreshold">Порог схожести мыши (%):</label><input type="number" id="mouseThreshold" class="filter-input" style="width: 80px;"></div>
+                <div style="display:flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--light); border-radius: 8px;"><label for="printThreshold">Порог попыток печати:</label><input type="number" id="printThreshold" class="filter-input" style="width: 80px;"></div>
+                <div style="display:flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--light); border-radius: 8px;"><label for="ipFingerprintCheck">Учитывать IP в анализе отпечатков:</label><input type="checkbox" id="ipFingerprintCheck" style="transform: scale(1.5);"></div>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: right;"><button class="btn btn-primary" id="saveSettingsBtn">💾 Сохранить</button></div>
+        </div>
+    </div>
+    <div id="userProfileModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;"><div class="modal-header"><h3 class="modal-title" id="profileTitle">👤 Профиль пользователя</h3><button class="close-btn" id="closeUserProfileBtn">&times;</button></div><div id="profileContent"></div></div>
+    </div>
+    <div id="eventLogModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;"><div class="modal-header"><h3 class="modal-title" id="eventLogTitle">📜 Журнал событий</h3><button class="close-btn" id="closeEventLogBtn">&times;</button></div><div id="eventLogContent"></div></div>
+    </div>
+
+    <div id="exportModal" class="modal">
+        <div class="modal-content export-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Экспорт данных</h3>
+                <button class="close-btn" id="closeExportModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <h4>Выберите формат</h4>
+                <div class="export-options">
+                    <div class="export-option" data-format="excel">
+                        <div class="export-icon">📊</div>
+                        <div class="export-label">Excel</div>
+                    </div>
+                    <div class="export-option" data-format="pdf">
+                        <div class="export-icon">📄</div>
+                        <div class="export-label">PDF</div>
+                    </div>
+                    <div class="export-option" data-format="csv">
+                        <div class="export-icon">📋</div>
+                        <div class="export-label">CSV</div>
+                    </div>
+                </div>
+                <div class="export-settings">
+                    <div class="export-setting">
+                        <span class="export-setting-label">Только выбранные записи</span>
+                        <div class="toggle-switch" id="exportSelectedToggle">
+                            <div class="toggle-switch-knob"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelExportBtn">Отмена</button>
+                <button class="btn btn-primary" id="executeExportBtn">📥 Экспортировать</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

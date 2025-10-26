@@ -26,6 +26,7 @@ export let selectedForComparison = new Set();
 /** @type {Map<string, Object>} Постоянный кэш всех загруженных результатов. Ключ - sessionId. */
 export const allLoadedResults = new Map();
 
+export let dashboardStats = null;
 // =============================================================================
 // СОСТОЯНИЕ ПАГИНАЦИИ
 // =============================================================================
@@ -177,4 +178,7 @@ export let mainResultsSortDir = 'desc';
 export function setMainResultsSort(key, dir) {
     mainResultsSortKey = key;
     mainResultsSortDir = dir;
+}
+export function setDashboardStats(stats) {
+    dashboardStats = stats;
 }

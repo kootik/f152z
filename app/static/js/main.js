@@ -3,7 +3,7 @@
  * Application orchestrator with secure event handling.
  */
 
-import { settings, updateSettings, selectedForComparison, currentPageResults, currentPage, setResultsPerPage } from './state.js';
+import { settings, updateSettings, selectedForComparison, currentPage, setResultsPerPage, setDashboardStats } from './state.js';
 import apiClient from './api.js';
 import * as ui from './ui.js';
 import * as analysis from './analysis.js';
@@ -19,7 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAppUI();
     initializeEventListeners();
     
-    apiClient.loadInitialData(1);
+    // --- ИЗМЕНЕНИЕ: Загружаем и данные, и статистику ---
+    apiClient.loadInitialData(1).then(() => {
+        // Загружаем статистику ПОСЛЕ загрузки основных данных
+        // чтобы renderDashboardCharts мог использовать allLoadedResults
+        apiClient.fetchDashboardStats().then(stats => {
+            setDashboardStats(stats); // <-- СОХРАНЯЕМ СТАТИСТИКУ
+            ui.renderDashboardWidgets(stats);
+            ui.renderDashboardCharts(); // Теперь это безопасно вызывать
+        });
+    });
     console.log("✅ DOMContentLoaded: Инициализация завершена.");
 });
 
@@ -77,6 +86,16 @@ function initializeEventListeners() {
         });
     }
 
+    // --- ИСПРАВЛЕНИЕ #3: Добавляем обработчик для меню пользователя ---
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.addEventListener('click', (e) => {
+            // Просто переключаем класс 'active'. 
+            // CSS должен будет обработать показ/скрытие выпадающего меню.
+            e.currentTarget.classList.toggle('active');
+        });
+    }
+    // --- КОНЕЦ ИСПРАВЛЕНИЯ #3 ---
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
@@ -101,17 +120,16 @@ function initializeEventListeners() {
     }
 
     // --- ГЛАВНЫЙ ОБРАБОТЧИК КЛИКОВ НА ВСЕЙ СТРАНИЦЕ ---
-    // Используем делегирование событий для обработки кликов на динамических элементах
     document.body.addEventListener('click', (e) => {
         const target = e.target;
 
         // --- 1. ЛОГИКА ВЫПАДАЮЩЕГО СПИСКА (Dropdown) ---
         const dropdownToggle = target.closest('#loadOptionsToggle');
-        const dropdownItem = target.closest('.dropdown-item');
-        const isClickInsideDropdown = target.closest('.load-options-dropdown');
-
-        // Закрываем список, если клик был вне его области
-        if (!isClickInsideDropdown) {
+        const dropdownItem = target.closest('.dropdown-item'); // Находит ЛЮБОЙ элемент .dropdown-item
+        const isClickInsideLoadOptions = target.closest('.load-options-dropdown');
+        
+        // Закрываем список "Показывать по:", если клик был вне его
+        if (!isClickInsideLoadOptions) {
             const menu = document.getElementById('loadOptionsMenu');
             if (menu?.classList.contains('active')) {
                 menu.classList.remove('active');
@@ -119,29 +137,48 @@ function initializeEventListeners() {
             }
         }
         
-        if (dropdownToggle) { // Клик по кнопке для открытия/закрытия
+        if (dropdownToggle) { // Клик по кнопке "Показывать по:"
             const menu = document.getElementById('loadOptionsMenu');
             dropdownToggle.classList.toggle('active');
             menu.classList.toggle('active');
             return; // Действие обработано
         }
         
-        if (dropdownItem) { // Клик по элементу в списке
-            e.preventDefault();
-            const count = dropdownItem.dataset.count;
-            document.getElementById('selectedValue').textContent = count === 'all' ? 'Все' : count;
-            setResultsPerPage(count);
-            apiClient.loadInitialData(1);
+        // --- 👇 ИСПРАВЛЕННАЯ ЛОГИКА ОБРАБОТКИ .dropdown-item 👇 ---
+        if (dropdownItem) { 
+            e.preventDefault(); // Отменяем переход по ссылке для ВСЕХ
+
+            // A. Это элемент из списка "Показывать по:"?
+            if (dropdownItem.closest('#loadOptionsMenu')) {
+                const count = dropdownItem.dataset.count;
+                document.getElementById('selectedValue').textContent = count === 'all' ? 'Все' : count;
+                setResultsPerPage(count);
+                apiClient.loadInitialData(1);
+                
+                // Закрываем это меню
+                const menu = document.getElementById('loadOptionsMenu');
+                const toggle = document.getElementById('loadOptionsToggle');
+                menu?.classList.remove('active');
+                toggle?.classList.remove('active');
+            }
             
-            // Закрываем меню после выбора
-            const menu = document.getElementById('loadOptionsMenu');
-            const toggle = document.getElementById('loadOptionsToggle');
-            menu?.classList.remove('active');
-            toggle?.classList.remove('active');
+            // B. Это кнопка "Настройки" из меню пользователя?
+            else if (dropdownItem.id === 'openSettingsBtn') {
+                ui.openSettings(); // <-- ВЫЗЫВАЕМ ФУНКЦИЮ ИЗ ui.js
+                document.getElementById('userMenu')?.classList.remove('active'); // Закрываем меню пользователя
+            }
+            
+            // C. Это кнопка "Выход"?
+            else if (dropdownItem.classList.contains('logout')) {
+                window.location.href = '/logout'; // (Или ваш URL для выхода)
+            }
+
             return; // Действие обработано
         }
+        // --- 👆 КОНЕЦ ИСПРАВЛЕННОЙ ЛОГИКИ 👆 ---
         
-        // --- 2. ГЛОБАЛЬНЫЕ ДЕЙСТВИЯ (Закрытие модальных окон) ---
+        
+        // --- 2. ГЛОБАЛЬНЫЕ ДЕЙСТВИЯ (Закрытие модальных окон и меню) ---
         if (target.classList.contains('modal')) {
             target.style.display = 'none';
             return;
@@ -150,11 +187,34 @@ function initializeEventListeners() {
             target.closest('.modal').style.display = 'none';
             return;
         }
+        // Закрываем меню пользователя, если клик был вне его
+        if (!target.closest('#userMenu')) {
+            document.getElementById('userMenu')?.classList.remove('active');
+        }
+        // Закрываем поиск, если клик был вне его
+        if (!target.closest('.search-container')) {
+            ui.hideGlobalSearchResults();
+        }
 
         // --- 3. КНОПКИ НА ПАНЕЛИ ФИЛЬТРОВ И АНАЛИЗА ---
         const actionButton = target.closest('.btn, .preset-btn');
         if (actionButton) {
-            if (actionButton.id === 'analyzeFingerprintBtn') analysis.analyzeFingerprints();
+            if (actionButton.id === 'analyzeMouseBtn') {
+                const selectedCheckboxes = document.querySelectorAll('#results-table-body .row-checkbox:checked');
+                const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.sessionId);
+                
+                if (selectedIds.length === 0) {
+                    ui.showNotification("Выберите хотя бы одну сессию из таблицы для анализа мыши.", "warning");
+                    return;
+                }
+                
+                selectedForComparison.clear();
+                selectedIds.forEach(id => selectedForComparison.add(id));
+                ui.switchView('comparison');
+                setTimeout(() => runDetailedAnalysis(), 50);
+
+            }
+            else if (actionButton.id === 'analyzeFingerprintBtn') analysis.analyzeFingerprints();
             else if (actionButton.id === 'analyzeFocusBtn') ui.displayAnomalyReport('violations');
             else if (actionButton.id === 'detailedAnalysisBtn') runDetailedAnalysis();
             else if (actionButton.id === 'saveSettingsBtn') ui.saveSettings();
@@ -163,7 +223,7 @@ function initializeEventListeners() {
             else if (actionButton.matches('.preset-btn')) {
                 document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
                 actionButton.classList.add('active');
-                ui.applyPresetFilter(actionButton.dataset.preset);
+                apiClient.loadInitialData(1);
             }
             return; // Действие обработано
         }
@@ -172,37 +232,47 @@ function initializeEventListeners() {
         const tableHeader = target.closest('.data-table thead th[data-sort]');
         if (tableHeader) {
             const sortKey = tableHeader.dataset.sort;
-            // Определяем, для какой таблицы вызвана сортировка
             if (target.closest('#results-container')) {
                 ui.sortAndRerenderMainResults(sortKey);
             } else if (target.closest('#abandoned-sessions-container')) {
                 ui.sortAndRerenderAbandoned(sortKey);
             }
-            return; // Действие обработано
+            return;
         }
-        // Вставьте этот код в обработчик кликов в main.js
+        
+        const selectAll = target.closest('#selectAllRows');
+        if (selectAll) {
+            const isChecked = selectAll.checked;
+            document.querySelectorAll('#results-table-body .row-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            return;
+        }
 
 		const analysisBtn = target.closest('.single-analysis-btn');
 		if (analysisBtn) {
 			e.preventDefault();
 			const sessionId = analysisBtn.dataset.sessionId;
 			if (sessionId) {
-				// Очищаем предыдущий выбор и выбираем только одного пользователя
 				selectedForComparison.clear();
 				selectedForComparison.add(sessionId);
-
-				// Переключаемся на вид сравнения
 				ui.switchView('comparison');
-
-				// Сразу запускаем анализ
-				// Небольшая задержка, чтобы view успел переключиться
 				setTimeout(() => runDetailedAnalysis(), 50);
 			}
-			return; // Действие обработано
+			return;
 		}
+        // --- 👇 ИЗМЕНЕННАЯ ЛОГИКА ПАГИНАЦИИ 👇 ---
         const pageButton = target.closest('.page-btn');
         if (pageButton && !pageButton.disabled) {
-            apiClient.loadInitialData(parseInt(pageButton.dataset.page, 10));
+            
+            // Проверяем, к какой пагинации относится кнопка
+            if (pageButton.classList.contains('registry-page-btn')) {
+                // Это пагинация Реестра
+                apiClient.loadAndRenderCertificates(parseInt(pageButton.dataset.page, 10));
+            } else {
+                // Это пагинация Дашборда (старая логика)
+                apiClient.loadInitialData(parseInt(pageButton.dataset.page, 10));
+            }
             return;
         }
 
@@ -246,6 +316,44 @@ function initializeEventListeners() {
     const fingerprintFilter = document.getElementById('fingerprintFilter');
     if (fingerprintFilter) fingerprintFilter.addEventListener('change', ui.applyFiltersAndRender);
     
+    // Этот фильтр вызывает БЭКЕНД (API) фильтрацию
+    const statusFilter = document.getElementById('statusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', () => {
+            // При смене статуса, загружаем первую страницу (page=1) с новым фильтром
+            apiClient.loadInitialData(1);
+        });
+    } 
+    // --- ИСПРАВЛЕНИЕ #2: Глобальный поиск (частичная реализация) ---
+    const globalSearch = document.getElementById('globalSearch');
+    let searchTimeout;
+    if (globalSearch) {
+        // Обработчик для ввода текста
+        globalSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            
+            // Отменяем предыдущий таймаут
+            clearTimeout(searchTimeout);
+            if (query.length > 2) {
+                // Ждем 300мс после окончания ввода
+                searchTimeout = setTimeout(async () => {
+                    const results = await apiClient.fetchGlobalSearch(query);
+                    console.log("Результаты поиска:", results);
+                    ui.renderGlobalSearchResults(results);
+                }, 300);
+            } else {
+                ui.hideGlobalSearchResults(); 
+            }
+        });
+    }
+    // Обработчик горячей клавиши Ctrl+K
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && (e.key === 'k' || e.key === 'K' || e.keyCode === 75)) {
+            e.preventDefault();
+            globalSearch?.focus();
+        }
+    });
+    // --- КОНЕЦ ИСПРАВЛЕНИЯ #2 ---
     console.log("✅ Все обработчики событий успешно установлены.");
 }
 
@@ -276,6 +384,12 @@ async function runDetailedAnalysis() {
         if (fullResults.length !== selectedIds.length) {
             ui.showNotification("Не удалось загрузить полные данные для одной или нескольких сессий.", "danger");
         }
+        // Если ничего не загрузилось, выходим
+        if (fullResults.length === 0) {
+            ui.showNotification("Не удалось загрузить данные для анализа.", "danger");
+            ui.hideLoading(); // Не забываем скрыть загрузчик
+            return; // Выходим из функции
+        }
 
         let dtwResults = {}; // По умолчанию результат DTW пустой
 
@@ -289,11 +403,8 @@ async function runDetailedAnalysis() {
             }
         }
 
-        if (dtwResults) {
+        // 4. Рендерим в любом случае (даже для 1 пользователя)
             ui.renderComparisonResults(dtwResults, fullResults);
-        } else {
-            ui.showNotification("Не удалось выполнить DTW анализ.", "danger");
-        }
 
     } catch (error) {
         console.error("Ошибка в процессе детального анализа:", error);
@@ -302,4 +413,3 @@ async function runDetailedAnalysis() {
         ui.hideLoading();
     }
 }
-

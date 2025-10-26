@@ -32,7 +32,7 @@ class APIClient {
         }
 
         // 2. Fallback to cookie method
-        console.warn("CSRF meta tag not found. Falling back to cookie method. It's recommended to add the meta tag to your HTML head.");
+        console.warn("CSRF meta tag not found. Falling back to cookie method.");
         const value = `; ${document.cookie}`;
         const parts = value.split(`; csrf_token=`); // Note: check the actual cookie name
         if (parts.length === 2) {
@@ -128,18 +128,34 @@ class APIClient {
     async loadInitialData(page = 1) {
         ui.showLoading();
         try {
-            const data = await this.safeFetch(`/api/get_results?page=${page}&per_page=${resultsPerPage}`);
+            // --- 👇 НОВЫЙ КОД: Читаем значение фильтра статуса 👇 ---
+            const statusFilter = document.getElementById('statusFilter');
+            const status = statusFilter ? statusFilter.value : '';
+            // --- 👇 НОВЫЙ КОД: Получаем активный пресет 👇 ---
+            const presetFilter = document.querySelector('.preset-btn.active');
+            const preset = presetFilter ? presetFilter.dataset.preset : 'all';
+
+            // --- 👇 ИЗМЕНЕНИЕ: Добавляем &status=... в URL 👇 ---
+            const data = await this.safeFetch(`/api/get_results?page=${page}&per_page=${resultsPerPage}&status=${status}&preset=${preset}`);
             
             setCurrentPageResults(data.results);
             setPaginationState(data.page, data.per_page, data.total);
 
-            ui.renderDashboardWidgets();
-            ui.renderDataTable(data.results);
+            // Эти функции теперь отработают с отфильтрованными с сервера данными
+            // ui.renderDashboardWidgets(); // <-- Эта строка вызывала ошибку
+            ui.renderDataTable(data.results); 
             ui.renderPaginationControls();
+            
+            // Запускаем клиентскую фильтрацию (если в полях ФИО и т.д. что-то введено)
+            // Это отфильтрует уже загруженную И отфильтрованную сервером страницу
+            ui.renderDashboardCharts();
+            ui.applyFiltersAndRender(); 
 
         } catch (error) {
             console.error('Ошибка загрузки результатов:', error);
-            ui.renderDataTableError("⚠️ Ошибка загрузки данных. Убедитесь, что бэкенд запущен.");
+            ui.renderDataTable([]); // Показать пустую таблицу при ошибке
+            ui.renderPaginationControls(); // Сбросить пагинацию
+            ui.renderDashboardCharts(); // Очистить графики
         } finally {
             ui.hideLoading();
         }
@@ -171,12 +187,14 @@ class APIClient {
         }
     }
 
-    async loadAndRenderCertificates() {
+    async loadAndRenderCertificates(page = 1) { // <-- ИЗМЕНЕНИЕ: Принимаем номер страницы
         const container = document.getElementById('registry-container');
         container.innerHTML = '<div class="loading">Загрузка реестра...</div>';
         try {
-            const certificates = await this.safeFetch('/api/get_certificates');
-            ui.renderCertificatesTable(certificates);
+            // --- ИЗМЕНЕНИЕ: Добавляем параметры page и per_page в запрос ---
+            // (Установил 50, можете изменить на другое значение по умолчанию)
+            const data = await this.safeFetch(`/api/get_certificates?page=${page}&per_page=50`); 
+            ui.renderCertificatesTable(data); 
         } catch (error) {
             console.error("Failed to load certificates:", error);
             container.innerHTML = '<p class="error-message">Не удалось загрузить реестр.</p>';
@@ -240,6 +258,26 @@ class APIClient {
         }
     }
 
+    async fetchDashboardStats() {
+
+        try {
+            return await this.safeFetch('/api/get_dashboard_stats');
+        } catch (error) {
+            console.error('Ошибка загрузки статистики для виджетов:', error);
+            return null; // Возвращаем null, чтобы UI мог обработать
+        }
+    }
+    async fetchGlobalSearch(query) {
+        try {
+            return await this.safeFetch(`/api/global_search?q=${encodeURIComponent(query)}`);
+        } catch (error) {
+            console.error('Ошибка глобального поиска:', error);
+            return { users: [], sessions: [] }; // Возвращаем пустой объект при ошибке
+        }
+    }
+    /**
+     * NEW: Fetches global search results.
+     */
     async fetchFullResultDetails(sessionId) {
         try {
             return await this.safeFetch(`/api/get_full_result/${sessionId}`);

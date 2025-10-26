@@ -1834,6 +1834,20 @@
                  * Увеличивает счетчик попыток и отправляет лог на сервер.
                  */
 
+                getCsrfToken() {
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) {
+                        return meta.getAttribute('content');
+                    }
+                    const value = `; ${document.cookie}`;
+                    const parts = value.split(`; csrf_token=`);
+                    if (parts.length === 2) {
+                        return parts.pop().split(';').shift();
+                    }
+                    console.warn('CSRF token cookie not found');
+                    return null;
+                }
+
                 handleBeforePrint() {
                     this.printAttempts++;
                     this.logEventToServer('print_attempt', {
@@ -1917,6 +1931,7 @@
                         return v.toString(16);
                     });
                 }
+				
                 async logEventToServer(eventType, details={}) {
                     const payload = {
                         sessionId: this.sessionId,
@@ -1924,12 +1939,18 @@
                         eventTimestamp: new Date().toISOString(),
                         details: details
                     };
+                    const csrfToken = this.getCsrfToken();
+                    if (!csrfToken) {
+                        console.error('CSRF Token is missing. Cannot log event.');
+                        return;
+                    }
                     try {
                         await fetch('/api/log_event', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-API-Key': API_KEY
+                                'X-API-Key': API_KEY,
+                                'X-CSRFToken': csrfToken
                             },
                             body: JSON.stringify(payload)
                         });
@@ -3065,12 +3086,19 @@
                     console.log("Отправляемые данные:", JSON.stringify(data, null, 2));
                     // Для отладки
                     const apiUrl = '/api/save_results';
+                    const csrfToken = this.getCsrfToken();
+                    if (!csrfToken) {
+                        console.error('CSRF Token is missing. Cannot save results.');
+                        this.showCustomAlert('Критическая ошибка: отсутствует токен безопасности. Не удалось сохранить результаты.');
+                        return;
+                    }
                     try {
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-API-Key': API_KEY
+                                'X-API-Key': API_KEY,
+                                'X-CSRFToken': csrfToken
                             },
                             body: JSON.stringify(data)
                         });
