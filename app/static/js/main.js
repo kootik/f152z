@@ -2,12 +2,15 @@
  * main.js
  * Application orchestrator with secure event handling.
  */
-
-import { settings, updateSettings, selectedForComparison, currentPage, setResultsPerPage, setDashboardStats } from './state.js';
+import { 
+    settings, updateSettings, selectedForComparison, currentPage, 
+    setResultsPerPage, setDashboardStats, 
+    setSystemSettings, systemSettings
+} from './state.js';
 import apiClient from './api.js';
 import * as ui from './ui.js';
 import * as analysis from './analysis.js';
-
+import { /*...,*/ setRegistrySort, registrySortKey, registrySortDir } from './state.js';
 // =============================================================================
 // APPLICATION INITIALIZATION
 // =============================================================================
@@ -23,11 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
     apiClient.loadInitialData(1).then(() => {
         // Загружаем статистику ПОСЛЕ загрузки основных данных
         // чтобы renderDashboardCharts мог использовать allLoadedResults
-        apiClient.fetchDashboardStats().then(stats => {
+        // --- ИСПРАВЛЕНИЕ: Добавлена цепочка return и .catch() ---
+        return apiClient.fetchDashboardStats().then(stats => {
             setDashboardStats(stats); // <-- СОХРАНЯЕМ СТАТИСТИКУ
             ui.renderDashboardWidgets(stats);
             ui.renderDashboardCharts(); // Теперь это безопасно вызывать
         });
+    }).catch(error => {
+        console.error("⛔️ Не удалось загрузить начальные данные или статистику:", error);
+        ui.showNotification("Ошибка при загрузке данных. Пожалуйста, обновите страницу.", "danger");
     });
     console.log("✅ DOMContentLoaded: Инициализация завершена.");
 });
@@ -70,10 +77,15 @@ function initializeEventListeners() {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-            ui.switchView(item.dataset.view);
+            switchView(item.dataset.view);
         });
     });
-
+    
+    // --- ИСПРАВЛЕНИЕ: Этот обработчик теперь ЕДИНСТВЕННЫЙ для сохранения ---
+    const settingsForm = document.getElementById('settings-form');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', handleSaveSettings);
+    }
     // --- ВЕРХНЯЯ ПАНЕЛЬ (КНОПКИ МЕНЮ, ТЕМЫ, УВЕДОМЛЕНИЙ) ---
     const menuToggle = document.getElementById('menuToggle');
     if (menuToggle) {
@@ -92,6 +104,8 @@ function initializeEventListeners() {
         userMenu.addEventListener('click', (e) => {
             // Просто переключаем класс 'active'. 
             // CSS должен будет обработать показ/скрытие выпадающего меню.
+            // (Предотвращаем всплытие, чтобы клик по меню не закрыл сам себя)
+            if (e.target.closest('.user-menu-dropdown')) return; 
             e.currentTarget.classList.toggle('active');
         });
     }
@@ -210,35 +224,57 @@ function initializeEventListeners() {
                 
                 selectedForComparison.clear();
                 selectedIds.forEach(id => selectedForComparison.add(id));
-                ui.switchView('comparison');
+                // --- 👇 ИЗМЕНЕНИЕ (Инструкция 2.3) 👇 ---
+                switchView('comparison');
+                // --- 👆 ---
                 setTimeout(() => runDetailedAnalysis(), 50);
 
             }
             else if (actionButton.id === 'analyzeFingerprintBtn') analysis.analyzeFingerprints();
             else if (actionButton.id === 'analyzeFocusBtn') ui.displayAnomalyReport('violations');
             else if (actionButton.id === 'detailedAnalysisBtn') runDetailedAnalysis();
-            else if (actionButton.id === 'saveSettingsBtn') ui.saveSettings();
+            
+            // --- 👇 ИСПРАВЛЕНИЕ: Добавлен обработчик для кнопки "Сохранить" в МОДАЛЬНОМ окне ---
+            else if (actionButton.id === 'saveAnalysisSettingsBtn') {
+                ui.saveSettings(); // Эта функция из ui.js, она сохраняет настройки АНАЛИЗА
+            }
+            // --- 👆 КОНЕЦ ИСПРАВЛЕНИЯ 👆 ---
+
             else if (actionButton.id === 'resetFiltersBtn') ui.resetFilters();
             else if (actionButton.id === 'exportBtn') ui.openExportModal();
             else if (actionButton.matches('.preset-btn')) {
                 document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
                 actionButton.classList.add('active');
-                apiClient.loadInitialData(1);
+                ui.applyPresetFilter(actionButton.dataset.preset);
             }
             return; // Действие обработано
         }
 
         // --- 4. ВЗАИМОДЕЙСТВИЯ С ТАБЛИЦАМИ (Сортировка, ссылки, пагинация) ---
+        
+        // --- 👇 ИСПРАВЛЕНИЕ: Удалена лишняя скобка '}' ---
         const tableHeader = target.closest('.data-table thead th[data-sort]');
         if (tableHeader) {
             const sortKey = tableHeader.dataset.sort;
             if (target.closest('#results-container')) {
-                ui.sortAndRerenderMainResults(sortKey);
+                ui.sortAndRenderMainResults(sortKey); // Старая логика для основной таблицы
             } else if (target.closest('#abandoned-sessions-container')) {
-                ui.sortAndRerenderAbandoned(sortKey);
+                ui.sortAndRenderAbandoned(sortKey); // Старая логика для прерванных
+            // } <--- ЛИШНЯЯ СКОБКА УДАЛЕНА
+            // --- 👇 НОВЫЙ КОД: Обработка сортировки реестра 👇 ---
+            } else if (tableHeader.classList.contains('registry-sort-header')) {
+                let newSortDir = 'desc';
+                if (registrySortKey === sortKey) {
+                    newSortDir = registrySortDir === 'desc' ? 'asc' : 'desc';
+                }
+                setRegistrySort(sortKey, newSortDir);
+                // Перезагружаем первую страницу реестра с новой сортировкой
+                // ПРИМЕЧАНИЕ: Это не будет работать, пока бэкенд не обновлен!
+                apiClient.loadAndRenderCertificates(1);
             }
+            // --- 👆 КОНЕЦ НОВОГО КОДА 👆 ---
             return;
-        }
+        } // <--- Правильная закрывающая скобка
         
         const selectAll = target.closest('#selectAllRows');
         if (selectAll) {
@@ -249,18 +285,20 @@ function initializeEventListeners() {
             return;
         }
 
-		const analysisBtn = target.closest('.single-analysis-btn');
-		if (analysisBtn) {
-			e.preventDefault();
-			const sessionId = analysisBtn.dataset.sessionId;
-			if (sessionId) {
-				selectedForComparison.clear();
-				selectedForComparison.add(sessionId);
-				ui.switchView('comparison');
-				setTimeout(() => runDetailedAnalysis(), 50);
-			}
-			return;
-		}
+       const analysisBtn = target.closest('.single-analysis-btn');
+       if (analysisBtn) {
+          e.preventDefault();
+          const sessionId = analysisBtn.dataset.sessionId;
+          if (sessionId) {
+             selectedForComparison.clear();
+             selectedForComparison.add(sessionId);
+                // --- 👇 ИЗМЕНЕНИЕ (Инструкция 2.3) 👇 ---
+             switchView('comparison');
+                // --- 👆 ---
+             setTimeout(() => runDetailedAnalysis(), 50);
+          }
+          return;
+       }
         // --- 👇 ИЗМЕНЕННАЯ ЛОГИКА ПАГИНАЦИИ 👇 ---
         const pageButton = target.closest('.page-btn');
         if (pageButton && !pageButton.disabled) {
@@ -354,6 +392,14 @@ function initializeEventListeners() {
         }
     });
     // --- КОНЕЦ ИСПРАВЛЕНИЯ #2 ---
+    const applyRegistryFiltersBtn = document.getElementById('applyRegistryFiltersBtn');
+    if (applyRegistryFiltersBtn) {
+        applyRegistryFiltersBtn.addEventListener('click', () => {
+            // Перезагружаем первую страницу реестра с учетом фильтров
+            // ПРИМЕЧАНИЕ: Это не будет работать, пока бэкенд не обновлен!
+            apiClient.loadAndRenderCertificates(1);
+        });
+    }
     console.log("✅ Все обработчики событий успешно установлены.");
 }
 
@@ -361,6 +407,42 @@ function initializeEventListeners() {
 // =============================================================================
 // BUSINESS LOGIC
 // =============================================================================
+
+// --- 👇 ДОБАВЛЕНА ФУНКЦИЯ switchView (Инструкция 2.3) 👇 ---
+async function switchView(viewName) {
+    ui.switchView(viewName); // ui.js handles DOM manipulation
+
+    // Load data if necessary for the new view
+    // (На основе предоставленного фрагмента)
+    switch (viewName) {
+
+
+        case 'statistics':
+             ui.generateStatistics();
+            break;
+        case 'settings': // <-- ДОБАВЛЕН ЭТОТ CASE
+            // Загружаем настройки только если их нет в кэше
+            if (!systemSettings) {
+                ui.showLoading();
+                try {
+                    const settingsData = await apiClient.fetchSettings(); // Переменная переименована, чтобы избежать конфликта имен
+                    if (settingsData) {
+                        setSystemSettings(settingsData); // Сохраняем в state
+                        ui.renderSettingsForm(settingsData);
+                    }
+                } catch (e) {
+                    console.error("Failed to load settings view", e);
+                } finally {
+                    ui.hideLoading();
+                }
+            } else {
+                // Если в кэше есть, просто рендерим
+                ui.renderSettingsForm(systemSettings);
+            }
+            break;
+    }
+}
+// --- 👆 ---
 
 async function runDetailedAnalysis() {
     const selectedIds = Array.from(selectedForComparison);
@@ -411,5 +493,45 @@ async function runDetailedAnalysis() {
         ui.showNotification("Произошла ошибка во время анализа.", "danger");
     } finally {
         ui.hideLoading();
+    }
+}
+
+// --- 👇 ДОБАВЛЕНА ФУНКЦИЯ (Инструкция 2.4) 👇 ---
+/**
+ * Обрабатывает отправку формы настроек.
+ * @param {Event} e - Событие отправки формы.
+ */
+async function handleSaveSettings(e) {
+    e.preventDefault();
+    const saveBtn = document.getElementById('saveSettingsBtn');
+    if (!saveBtn || saveBtn.disabled) return; // Проверка на случай двойного клика
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Сохранение...';
+
+    const form = e.target;
+    const dataToSave = {};
+
+    // Собираем данные из всех input[data-key]
+    form.querySelectorAll('input[data-key]').forEach(input => {
+        dataToSave[input.dataset.key] = input.value;
+    });
+
+    try {
+        const response = await apiClient.saveSettings(dataToSave);
+        if (response.status === 'success') {
+            // Обновляем локальный кэш
+            setSystemSettings(dataToSave);
+            ui.showNotification('Настройки успешно сохранены!', 'success');
+        } else {
+            ui.showNotification(response.message || 'Не удалось сохранить настройки', 'danger');
+        }
+    } catch (error) {
+        // Ошибка уже обработана в apiClient.saveSettings, просто логируем
+        console.error("Ошибка при сохранении настроек (обработчик):", error);
+        // ui.showNotification уже вызван в apiClient
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Сохранить изменения';
     }
 }

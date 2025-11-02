@@ -265,3 +265,22 @@ class DocumentCounter(db.Model):
     )
 
     __table_args__ = (Index("idx_counter_updated", "updated_at"),)
+
+
+# --- 👇 НОВАЯ МОДЕЛЬ ДЛЯ НАСТРОЕК 👇 ---
+class SystemSetting(db.Model):
+    """
+    Хранилище Key-Value для системных настроек,
+    которые можно редактировать через админ-панель.
+    """
+
+    __tablename__ = "system_settings"
+
+    # Ключ (например, 'ORG_NAME', 'SIGNATORY_1_NAME')
+    key = db.Column(db.String(128), primary_key=True)
+
+    # Значение (например, 'Министерство...')
+    value = db.Column(db.Text, nullable=True)
+
+    def __repr__(self):
+        return f"<SystemSetting {self.key}>"

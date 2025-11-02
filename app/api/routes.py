@@ -1,11 +1,24 @@
 # app/api/routes.py
 
 import json
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 from flask import current_app, jsonify, request
 from pydantic import ValidationError
-from sqlalchemy import Text, and_, case, cast, distinct, func, or_
+from sqlalchemy import (
+    Text,
+    alias,
+    and_,
+    case,
+    cast,
+    desc,
+    distinct,
+    extract,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
@@ -22,6 +35,7 @@ from app.models import (
     Fingerprint,
     ProctoringEvent,
     ResultMetadata,
+    SystemSetting,
     User,
 )
 from app.schemas.result_schema import SaveResultsRequest
@@ -235,6 +249,8 @@ def save_results():
             document_number = generate_document_number(db.session)
             result.document_number = document_number
 
+            # --- 👇 НОВЫЙ ПОДХОД К СОЗДАНИЮ СЕРТИФИКАТА 👇 ---
+            # 1. Создаем объект БЕЗ user_id или user
             certificate = Certificate(
                 document_number=document_number,
                 user_fullname=user.full_name,
@@ -242,7 +258,10 @@ def save_results():
                 test_type=validated_data.test_type,
                 score_percentage=result.score,
                 session_id=session_id,
+                # user_id и user НЕ передаем здесь
             )
+            # 2. Присваиваем пользователя через relationship ПОСЛЕ создания
+            certificate.user = user
             db.session.add(certificate)
 
         # --- Фиксация транзакции ---
@@ -649,27 +668,29 @@ def analyze_mouse():
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 
+# app/api/routes.py
+
+
+ALLOWED_PRESETS = {"all", "today", "week", "anomalies"}
+
+
 @api_bp.route("/get_results", methods=["GET"])
 @admin_required
 @cache.cached(timeout=60, query_string=True)
 def get_results_api():
     """
-    Возвращает результаты с пагинацией из БД.
-    Фильтрует по статусу И по пресетам (сегодня, неделя, аномалии).
+    Возвращает УМНЫЙ список результатов с пагинацией.
+    Автоматически обогащает 'pending' записи данными из логов событий.
     """
     try:
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
-
-        # --- 👇 НОВЫЙ КОД: Получаем статус из запроса 👇 ---
-        status = request.args.get(
-            "status", "", type=str
-        )  # По умолчанию "" (Все статусы)
-        # --- 👆 КОНЕЦ НОВОГО КОДА 👆 ---
+        status = request.args.get("status", "", type=str)
         preset = request.args.get("preset", "all", type=str)
 
         if preset not in ALLOWED_PRESETS:
             return jsonify({"status": "error", "message": "Invalid preset value"}), 400
+
         max_per_page = current_app.config.get("MAX_RESULTS_PER_PAGE", 1000)
 
         if not (1 <= page <= 1000 and 1 <= per_page <= max_per_page):
@@ -680,81 +701,175 @@ def get_results_api():
                 400,
             )
 
-        # Основа запроса: получаем метаданные и сразу подгружаем связанного пользователя,
-        base_query = ResultMetadata.query.options(db.joinedload(ResultMetadata.user))
-        # --- 👇 ДОБАВЛЕНЫ ФИЛЬТРЫ ДЛЯ ЗАВЕРШЕННЫХ ТЕСТОВ 👇 ---
-        # --- 👇 ИЗМЕНЕНИЕ: Динамические фильтры вместо "жестких" 👇 ---
+        # --- 👇 НОВАЯ УМНАЯ ЛОГИКА ЗАПРОСА 👇 ---
+
+        # Шаг 1: CTE для поиска первого события (study_started/test_started)
+        # Это даст нам userInfo, persistent_id и настоящий тип сессии
+        first_event_cte = (
+            select(
+                ProctoringEvent.session_id,
+                ProctoringEvent.event_type.label("session_type"),
+                ProctoringEvent.details,
+                ProctoringEvent.client_ip.label("first_ip"),
+                ProctoringEvent.persistent_id,
+                ProctoringEvent.page,  # <-- Включаем 'page'
+                func.row_number()
+                .over(
+                    partition_by=ProctoringEvent.session_id,
+                    order_by=ProctoringEvent.event_timestamp.asc(),
+                )
+                .label("rn"),
+            )
+            .filter(
+                ProctoringEvent.event_type.in_(["test_started", "study_started"]),
+                ProctoringEvent.details.isnot(None),
+            )
+            .cte("first_event")
+        )
+
+        # Оборачиваем CTE, чтобы выбрать только первую строку (rn=1)
+        first_event_alias = alias(
+            select(first_event_cte).where(first_event_cte.c.rn == 1), "first_event_data"
+        )
+
+        # Шаг 2: CTE для агрегации нарушений (счетчики)
+        violation_counts_cte = (
+            select(
+                ProctoringEvent.session_id,
+                func.count(case((ProctoringEvent.event_type == "focus_loss", 1))).label(
+                    "focus_loss_count"
+                ),
+                func.count(
+                    case((ProctoringEvent.event_type == "screenshot_attempt", 1))
+                ).label("screenshot_count"),
+                func.count(
+                    case((ProctoringEvent.event_type == "print_attempt", 1))
+                ).label("print_count"),
+            )
+            .group_by(ProctoringEvent.session_id)
+            .cte("violation_counts")
+        )
+
+        # Шаг 3: Основной запрос к ResultMetadata
+        base_query = (
+            db.session.query(
+                ResultMetadata,
+                User,  # Для завершенных тестов
+                first_event_alias.c.session_type,
+                first_event_alias.c.details.label("first_event_details"),
+                first_event_alias.c.first_ip,
+                first_event_alias.c.page.label(
+                    "page_from_event"
+                ),  # <-- Включаем 'page'
+                violation_counts_cte.c.focus_loss_count,
+                violation_counts_cte.c.screenshot_count,
+                violation_counts_cte.c.print_count,
+            )
+            .outerjoin(User, ResultMetadata.user_id == User.id)
+            .outerjoin(
+                first_event_alias,
+                ResultMetadata.session_id == first_event_alias.c.session_id,
+            )
+            .outerjoin(
+                violation_counts_cte,
+                ResultMetadata.session_id == violation_counts_cte.c.session_id,
+            )
+        )
+
+        # --- 4. Фильтры (логика осталась той же) ---
+
+        # Фильтры по СТАТУСУ
         if status == "completed":
-            # "Завершен" - есть оценка, время окончания и пользователь
             base_query = base_query.filter(
                 ResultMetadata.score.isnot(None),
                 ResultMetadata.end_time.isnot(None),
                 ResultMetadata.user_id.isnot(None),
             )
         elif status == "in_progress" or status == "abandoned":
-            # "В процессе" или "Прерван" - это записи, созданные log_event,
-            # но еще не обработанные save_results.
-            # У них нет user_id или end_time.
             base_query = base_query.filter(
-                ResultMetadata.user_id.is_(None),
-                ResultMetadata.end_time.is_(None),
-                # 'pending' также попадет сюда, т.к. у него user_id is None
+                ResultMetadata.user_id.is_(None), ResultMetadata.end_time.is_(None)
             )
 
-        # --- 👇 НОВЫЙ КОД: Фильтры по ПРЕСЕТАМ (даты и аномалии) 👇 ---
+        # Фильтры по ПРЕСЕТАМ
         now = datetime.now(UTC)
-
         if preset == "today":
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            base_query = base_query.filter(ResultMetadata.start_time >= today_start)
+            base_query = base_query.filter(
+                ResultMetadata.created_at >= today_start
+            )  # Используем created_at для pending
 
         elif preset == "week":
             week_start = (now - timedelta(days=now.weekday())).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
-            base_query = base_query.filter(ResultMetadata.start_time >= week_start)
+            base_query = base_query.filter(ResultMetadata.created_at >= week_start)
 
         elif preset == "anomalies":
-            # Загружаем пороги из конфига
+            # (Логика аномалий по raw_data - оставляем как есть, она работает для завершенных тестов)
+            # Мы можем добавить сюда и аномалии из `violation_counts_cte`
             focus_thresh = current_app.config.get("FOCUS_THRESHOLD", 5)
             blur_thresh = current_app.config.get("BLUR_THRESHOLD", 60)
             print_thresh = current_app.config.get("PRINT_THRESHOLD", 0)
 
-            # Фильтр по JSON-полю raw_data. Это специфично для PostgreSQL (JSONB)
-            # Мы ищем, где ('sessionMetrics' -> 'totalFocusLoss')::int > focus_thresh
             base_query = base_query.filter(
-                ResultMetadata.raw_data.isnot(None),
                 or_(
-                    ResultMetadata.raw_data.op("->")("sessionMetrics")
-                    .op("->>")("totalFocusLoss")
-                    .cast(db.Integer)
-                    > focus_thresh,
-                    ResultMetadata.raw_data.op("->")("sessionMetrics")
-                    .op("->>")("totalBlurTime")
-                    .cast(db.Float)
-                    > blur_thresh,
-                    ResultMetadata.raw_data.op("->")("sessionMetrics")
-                    .op("->>")("printAttempts")
-                    .cast(db.Integer)
-                    > print_thresh,
-                ),
+                    # Аномалии из завершенных тестов (старая логика)
+                    and_(
+                        ResultMetadata.raw_data.isnot(None),
+                        or_(
+                            ResultMetadata.raw_data.op("->")("sessionMetrics")
+                            .op("->>")("totalFocusLoss")
+                            .cast(db.Integer)
+                            > focus_thresh,
+                            ResultMetadata.raw_data.op("->")("sessionMetrics")
+                            .op("->>")("totalBlurTime")
+                            .cast(db.Float)
+                            > blur_thresh,
+                            ResultMetadata.raw_data.op("->")("sessionMetrics")
+                            .op("->>")("printAttempts")
+                            .cast(db.Integer)
+                            > print_thresh,
+                        ),
+                    ),
+                    # Аномалии из "pending" (новая логика)
+                    and_(
+                        ResultMetadata.raw_data.is_(None),  # Это pending
+                        or_(
+                            violation_counts_cte.c.focus_loss_count > focus_thresh,
+                            violation_counts_cte.c.print_count > print_thresh,
+                            # (мы не считаем blurTime для pending в этом CTE, но можно добавить)
+                        ),
+                    ),
+                )
             )
-        # --- 👆 КОНЕЦ НОВОГО КОДА 👆 ---
 
-        # Сортировка применяется всегда
-        base_query = base_query.order_by(ResultMetadata.start_time.desc())
+        # Сортируем по 'created_at' - это самое надежное поле,
+        # т.к. 'start_time' у pending записей == None
+        base_query = base_query.order_by(ResultMetadata.created_at.desc())
 
-        # Используем встроенную пагинацию SQLAlchemy - это проще и надежнее
         pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
         results_from_db = pagination.items
         total = pagination.total
 
+        # --- 5. Формирование ответа ---
         results = []
         for row in results_from_db:
-            # score теперь точно не None из-за фильтра .isnot(None)
-            score = row.score if row.score is not None else 0
+            # Разбираем кортеж
+            (
+                result_meta,
+                user,
+                session_type,
+                first_details,
+                first_ip,
+                page_from_event,
+                focus_loss,
+                screenshots,
+                prints,
+            ) = row
 
-            # ... (логика grade_class, grade_text) ...
+            score = result_meta.score if result_meta.score is not None else 0
+
+            # Логика оценок
             if score >= 90:
                 grade_class, grade_text = "excellent", "Отлично"
             elif score >= 80:
@@ -766,33 +881,89 @@ def get_results_api():
             else:
                 grade_class, grade_text = "poor", "Плохо"
 
-            # --- 👇 ИЗМЕНЕНИЕ: Извлекаем данные об аномалиях из raw_data 👇 ---
-            sm_raw = (row.raw_data or {}).get("sessionMetrics", {})
-            session_metrics = {
-                "startTime": row.start_time.isoformat() if row.start_time else None,
-                "endTime": row.end_time.isoformat() if row.end_time else None,
-                # Добавляем данные для фильтра аномалий
-                "totalFocusLoss": sm_raw.get("totalFocusLoss", 0),
-                "totalBlurTime": sm_raw.get("totalBlurTime", 0),
-                "printAttempts": sm_raw.get("printAttempts", 0),
-            }
-            # --- 👆 КОНЕЦ ИЗМЕНЕНИЯ 👆 ---
+            # --- 👇 ЛОГИКА ОБОГАЩЕНИЯ 👇 ---
+            user_info_data = {}
+            session_metrics_data = {}
+            test_type = result_meta.test_type
+            client_ip = result_meta.client_ip
+
+            if user:
+                # === СЦЕНАРИЙ 1: ЗАВЕРШЕННЫЙ ТЕСТ (как 2-я строка в вашем логе) ===
+                user_info_data = {
+                    "lastName": user.lastname,
+                    "firstName": user.firstname,
+                }
+                # Данные об аномалиях берем из raw_data
+                sm_raw = (result_meta.raw_data or {}).get("sessionMetrics", {})
+                session_metrics_data = {
+                    "startTime": (
+                        result_meta.start_time.isoformat()
+                        if result_meta.start_time
+                        else None
+                    ),
+                    "endTime": (
+                        result_meta.end_time.isoformat()
+                        if result_meta.end_time
+                        else None
+                    ),
+                    "totalFocusLoss": sm_raw.get("totalFocusLoss", 0),
+                    "totalBlurTime": sm_raw.get("totalBlurTime", 0),
+                    "printAttempts": sm_raw.get("printAttempts", 0),
+                    # (добавим screenshots, если он есть в raw_data)
+                    # "screenshotAttempts": sm_raw.get('screenshotAttempts', 0)
+                }
+
+            elif first_details or page_from_event:
+                # === СЦЕНАРИЙ 2: PENDING/ОБУЧЕНИЕ (как 1-я строка в вашем логе) ===
+                # Берем userInfo из лога
+                user_info_from_event = (first_details or {}).get("userInfo", {})
+                user_info_data = {
+                    "lastName": user_info_from_event.get("lastName", "N/A"),
+                    "firstName": user_info_from_event.get("firstName", "N/A"),
+                }
+                # Пытаемся получить 'page' из 'details'
+                if page_from_event:
+                    test_type = page_from_event  # Приоритет: "study-117"
+                elif session_type == "study_started":
+                    test_type = "study"
+                else:
+                    # Резервный вариант, если 'page' нет
+                    test_type = "test"
+                client_ip = first_ip or "N/A"
+                # Заполняем метрики из счетчиков
+                session_metrics_data = {
+                    "startTime": result_meta.created_at.isoformat(),
+                    "endTime": None,
+                    "totalFocusLoss": focus_loss or 0,
+                    "totalBlurTime": 0,
+                    "printAttempts": prints or 0,
+                    # "screenshotAttempts": screenshots or 0
+                }
+
+            else:
+                # === СЦЕНАРИЙ 3: PENDING, но нет логов (ошибка) ===
+                user_info_data = {"firstName": None, "lastName": None}
+                session_metrics_data = {
+                    "endTime": None,
+                    "printAttempts": 0,
+                    "startTime": None,
+                    "totalBlurTime": 0,
+                    "totalFocusLoss": 0,
+                }
+
+            # --- 👆 КОНЕЦ ЛОГИКИ ОБОГАЩЕНИЯ 👆 ---
 
             results.append(
                 {
-                    "sessionId": row.session_id,
-                    "testType": row.test_type,
-                    "clientIp": row.client_ip,
-                    "userInfo": {
-                        # Эта проверка снова критична
-                        "lastName": row.user.lastname if row.user else None,
-                        "firstName": row.user.firstname if row.user else None,
-                    },
+                    "sessionId": result_meta.session_id,
+                    "testType": test_type,  # Используем обогащенный testType
+                    "clientIp": client_ip,  # Используем обогащенный IP
+                    "userInfo": user_info_data,
                     "testResults": {
                         "percentage": score,
                         "grade": {"class": grade_class, "text": grade_text},
                     },
-                    "sessionMetrics": session_metrics,
+                    "sessionMetrics": session_metrics_data,
                 }
             )
 
@@ -807,19 +978,71 @@ def get_results_api():
 
 @api_bp.route("/get_certificates", methods=["GET"])
 @admin_required
-@cache.memoize(timeout=360)
+# УБИРАЕМ @cache.memoize, так как сортировка/фильтрация делают кэширование сложнее
+# @cache.memoize(timeout=360)
 def get_certificates():
     """
-    Возвращает реестр всех выданных сертификатов из БД.
-    4.4: ИСПРАВЛЕНО: Добавлена пагинация.
+    Возвращает реестр выданных сертификатов с пагинацией, сортировкой и фильтрацией по дате.
     """
     try:
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 50, type=int)
 
-        pagination = Certificate.query.order_by(Certificate.issue_date.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
+        # --- 👇 НОВЫЙ КОД: Получаем параметры сортировки и фильтрации 👇 ---
+        sort_key = request.args.get("sort_key", "issue_date", type=str)
+        sort_dir = request.args.get("sort_dir", "desc", type=str)
+        year = request.args.get("year", type=int)  # Год (может быть None)
+        month = request.args.get("month", type=int)  # Месяц (может быть None)
+
+        # Валидация направления сортировки
+        if sort_dir not in ["asc", "desc"]:
+            sort_dir = "desc"
+
+        # Список допустимых полей для сортировки (безопасность)
+        allowed_sort_keys = {
+            "document_number": Certificate.document_number,
+            "user_fullname": Certificate.user_fullname,
+            "user_position": Certificate.user_position,
+            "test_type": Certificate.test_type,
+            "issue_date": Certificate.issue_date,
+            "score_percentage": Certificate.score_percentage,
+        }
+        sort_column = allowed_sort_keys.get(
+            sort_key, Certificate.issue_date
+        )  # По умолчанию - дата
+
+        # --- 👇 НОВЫЙ КОД: Строим базовый запрос 👇 ---
+        base_query = Certificate.query
+
+        # --- 👇 НОВЫЙ КОД: Применяем фильтры по дате 👇 ---
+        if year:
+            base_query = base_query.filter(
+                extract("year", Certificate.issue_date) == year
+            )
+        if month:
+            # Убедимся, что месяц валиден
+            if 1 <= month <= 12:
+                base_query = base_query.filter(
+                    extract("month", Certificate.issue_date) == month
+                )
+            else:
+                current_app.logger.warning(
+                    f"Invalid month filter value received: {month}"
+                )
+
+        # --- 👇 НОВЫЙ КОД: Применяем сортировку 👇 ---
+        if sort_dir == "asc":
+            order_by_clause = sort_column.asc()
+        else:
+            order_by_clause = sort_column.desc()
+
+        # Добавляем сортировку по ID как вторую, чтобы порядок был стабильным при одинаковых значениях
+        base_query = base_query.order_by(
+            order_by_clause, Certificate.document_number.desc()
         )
+
+        # --- 👇 ИЗМЕНЕНИЕ: Пагинация применяется к отфильтрованному/отсортированному запросу 👇 ---
+        pagination = base_query.paginate(page=page, per_page=per_page, error_out=False)
 
         certificates = [cert.to_dict() for cert in pagination.items]
 
@@ -840,6 +1063,223 @@ def get_certificates():
     except Exception as e:
         current_app.logger.error(f"Error in get_certificates: {e}", exc_info=True)
         return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
+@api_bp.route("/get_filtered_stats", methods=["GET"])
+@admin_required
+# @cache.memoize(timeout=300) # Кэширование можно добавить позже, если нужно
+def get_filtered_stats():
+    """
+    Рассчитывает агрегированную статистику (только для тестов),
+    учитывая фильтры status и preset, И ПОДГОТАВЛИВАЕТ ДАННЫЕ ДЛЯ ГРАФИКОВ.
+    """
+    try:
+        status = request.args.get("status", "", type=str)
+        preset = request.args.get("preset", "all", type=str)
+
+        if preset not in ALLOWED_PRESETS:
+            return jsonify({"status": "error", "message": "Invalid preset value"}), 400
+
+        # --- Базовый запрос к ЗАВЕРШЕННЫМ ТЕСТАМ ---
+        # Мы считаем статистику только по тем, что имеют результат
+        base_query = db.session.query(
+            ResultMetadata.score,
+            ResultMetadata.user_id,
+            ResultMetadata.raw_data,
+            ResultMetadata.end_time,  # Нужно для графика активности
+            User.lastname,  # Нужно для топа аномалий
+            User.firstname,  # Нужно для топа аномалий
+        ).join(
+            User, ResultMetadata.user_id == User.id
+        )  # Используем join, т.к. user_id обязателен
+        # .outerjoin(violation_counts_cte, ResultMetadata.session_id == violation_counts_cte.c.session_id) # Если нужен join с нарушениями
+
+        # --- ФИЛЬТРЫ ---
+
+        # 1. ОБЯЗАТЕЛЬНЫЙ ФИЛЬТР: Только завершенные записи
+        base_query = base_query.filter(
+            ResultMetadata.score.isnot(None),
+            ResultMetadata.end_time.isnot(None),
+            ResultMetadata.user_id.isnot(None),
+        )
+
+        # 2. ОБЯЗАТЕЛЬНЫЙ ФИЛЬТР: Исключаем типы 'study*'
+        base_query = base_query.filter(
+            ~ResultMetadata.test_type.like(
+                "study%"
+            )  # Исключаем 'study', 'study-117', 'studytest-152' и т.д.
+        )
+
+        # 3. Фильтр по Статусу (уже применен фильтром "завершенные", но оставим для совместимости)
+        if status == "completed":
+            # Этот фильтр уже применен выше, но можно оставить для ясности
+            pass  # Уже отфильтровано
+        elif status in ["in_progress", "abandoned"]:
+            # Для этих статусов статистика не имеет смысла (нет score)
+            return (
+                jsonify(
+                    {
+                        "totalTests": 0,
+                        "averageScore": 0,
+                        "anomaliesCount": 0,
+                        "uniqueUsers": 0,
+                        "gradesDistribution": {},
+                        "activityByDay": {},
+                        "topAnomalies": [],  # Возвращаем пустые данные для графиков
+                    }
+                ),
+                200,
+            )
+        # Если status пустой - считаем по всем завершенным (поведение по умолчанию)
+
+        # 4. Фильтры по Пресетам (применяем к end_time)
+        now = datetime.now(UTC)
+        focus_thresh = current_app.config.get("FOCUS_THRESHOLD", 5)
+        blur_thresh = current_app.config.get("BLUR_THRESHOLD", 60)
+        print_thresh = current_app.config.get("PRINT_THRESHOLD", 0)
+        if preset == "today":
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            base_query = base_query.filter(ResultMetadata.end_time >= today_start)
+        elif preset == "week":
+            week_start = (now - timedelta(days=now.weekday())).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            base_query = base_query.filter(ResultMetadata.end_time >= week_start)
+        elif preset == "anomalies":
+            # Логика фильтра аномалий (повторяем из get_results_api)
+            base_query = base_query.filter(
+                ResultMetadata.raw_data.isnot(None),
+                or_(
+                    ResultMetadata.raw_data.op("->")("sessionMetrics")
+                    .op("->>")("totalFocusLoss")
+                    .cast(db.Integer)
+                    > focus_thresh,
+                    ResultMetadata.raw_data.op("->")("sessionMetrics")
+                    .op("->>")("totalBlurTime")
+                    .cast(db.Float)
+                    > blur_thresh,
+                    ResultMetadata.raw_data.op("->")("sessionMetrics")
+                    .op("->>")("printAttempts")
+                    .cast(db.Integer)
+                    > print_thresh,
+                ),
+            )
+
+        # --- ВЫПОЛНЕНИЕ ЗАПРОСА И РАСЧЕТЫ ---
+        # Выполняем запрос один раз
+        all_matching_tests = base_query.all()
+
+        total_tests = len(all_matching_tests)
+        average_score = 0
+        anomalies_count = 0
+        unique_user_ids = set()
+
+        # --- 👇 НОВЫЙ КОД: Переменные для данных графиков 👇 ---
+        grades_distribution = defaultdict(int)  # Словарь для подсчета оценок
+        activity_by_day = defaultdict(int)  # Словарь для подсчета активности по дням
+        user_anomalies = defaultdict(
+            int
+        )  # Словарь для подсчета аномалий по пользователям
+        # --- 👆 ---
+
+        if total_tests > 0:
+            total_score = 0
+            for test in all_matching_tests:
+                # --- Карточки статистики ---
+                unique_user_ids.add(test.user_id)
+                if test.score is not None:
+                    total_score += test.score
+                score = test.score if test.score is not None else 0
+                if score >= 90:
+                    grade_text = "Отлично"
+                elif score >= 80:
+                    grade_text = "Хорошо"
+                elif score >= 70:
+                    grade_text = "Удовлетворительно"
+                elif score >= 60:
+                    grade_text = "Неудовлетворительно"
+                else:
+                    grade_text = "Плохо"
+                grades_distribution[grade_text] += 1
+
+                # --- График активности ---
+                if test.end_time:
+                    # Группируем по дате в формате 'YYYY-MM-DD' для сортировки
+                    day_str = test.end_time.strftime("%Y-%m-%d")
+                    activity_by_day[day_str] += 1
+
+                # --- Подсчет аномалий (для карточки и для топа) ---
+                sm = (test.raw_data or {}).get("sessionMetrics", {})
+                is_anomalous = (
+                    sm.get("totalFocusLoss", 0) > focus_thresh
+                    or sm.get("totalBlurTime", 0) > blur_thresh
+                    or sm.get("printAttempts", 0) > print_thresh
+                )
+                if is_anomalous:
+                    anomalies_count += 1
+                    # Собираем данные для топа аномалий
+                    user_name = (
+                        f"{test.lastname or 'N/A'} {test.firstname or ''}".strip()
+                    )
+                    user_anomalies[
+                        user_name
+                    ] += 1  # Считаем кол-во АНОМАЛЬНЫХ ТЕСТОВ на пользователя
+
+            # Завершаем расчеты для карточек
+            average_score = round(total_score / total_tests, 1)
+
+        unique_users = len(unique_user_ids)
+
+        # --- 👇 НОВЫЙ КОД: Подготовка данных для графиков к отправке 👇 ---
+
+        # 1. Сортируем активность по дням
+        sorted_activity = sorted(activity_by_day.items())
+        # Преобразуем в формат { labels: [...], data: [...] } для Chart.js
+        activity_chart_data = {
+            "labels": [
+                datetime.strptime(date_str, "%Y-%m-%d").strftime("%d.%m.%Y")
+                for date_str, count in sorted_activity
+            ],  # Форматируем дату обратно
+            "data": [count for date_str, count in sorted_activity],
+        }
+
+        # 2. Формируем топ-5 по аномалиям
+        top_anomalies_list = sorted(
+            user_anomalies.items(), key=lambda item: item[1], reverse=True
+        )[:5]
+        # Преобразуем в формат { labels: [...], data: [...] } для Chart.js
+        anomalies_chart_data = {
+            "labels": [user_name for user_name, count in top_anomalies_list],
+            "data": [count for user_name, count in top_anomalies_list],
+        }
+        # --- 👆 ---
+
+        return (
+            jsonify(
+                {
+                    "totalTests": total_tests,
+                    "averageScore": average_score,
+                    "anomaliesCount": anomalies_count,
+                    "uniqueUsers": unique_users,
+                    "gradesDistribution": dict(
+                        grades_distribution
+                    ),  # Преобразуем defaultdict в dict
+                    "activityByDay": activity_chart_data,
+                    "topAnomalies": anomalies_chart_data,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_filtered_stats: {e}", exc_info=True)
+        return (
+            jsonify({"status": "error", "message": "Error calculating statistics"}),
+            500,
+        )
+
+
+# --- 👆 КОНЕЦ НОВОГО ЭНДПОИНТА 👆 ---
 
 
 @api_bp.route("/get_events/<session_id>", methods=["GET"])
@@ -871,7 +1311,8 @@ def get_events(session_id: str):
 def get_abandoned_sessions():
     """
     Находит прерванные сессии.
-    Использует fallback на userInfo из JSON-деталей.
+    Использует fallback на userInfo и 'page' из JSON-деталей.
+    Возвращает 'sessionType' (для фильтров) и 'sessionName' (для UI).
     """
     try:
         passing_score = current_app.config.get("PASSING_SCORE_THRESHOLD", 80)
@@ -893,6 +1334,7 @@ def get_abandoned_sessions():
                 ProctoringEvent.event_timestamp,
                 ProctoringEvent.details,
                 ProctoringEvent.persistent_id,
+                ProctoringEvent.page,  # <-- Включаем 'page'
                 func.row_number()
                 .over(
                     partition_by=ProctoringEvent.session_id,
@@ -913,13 +1355,17 @@ def get_abandoned_sessions():
         abandoned_query = (
             db.session.query(
                 ProctoringEvent.session_id,
-                func.max(first_event.c.event_type).label("session_type"),
+                func.max(first_event.c.event_type).label(
+                    "session_type_from_event"
+                ),  # Переименовано
                 func.min(ProctoringEvent.event_timestamp).label("start_time"),
                 func.max(cast(first_event.c.details, Text)).label(
                     "first_event_details_text"
                 ),
                 func.max(first_event.c.persistent_id).label("persistent_id"),
-                # ... (остальные агрегатные функции) ...
+                func.max(first_event.c.page).label(
+                    "page_from_event"
+                ),  # <-- Включаем 'page'
                 func.count(case((ProctoringEvent.event_type == "focus_loss", 1))).label(
                     "focus_loss_count"
                 ),
@@ -965,70 +1411,106 @@ def get_abandoned_sessions():
             users = User.query.filter(User.persistent_id.in_(persistent_ids)).all()
             users_map = {user.persistent_id: user for user in users}
 
-        # Маппинг типов сессий
-        session_type_map = {"test_started": "test", "study_started": "study"}
+        # --- 👇 ИЗМЕНЕНИЕ: Улучшенные карты имен и типов 👇 ---
+
+        # Карта для резервного определения (event_type -> 'study'/'test')
+        event_type_map = {"test_started": "test", "study_started": "study"}
+        session_name_map = {
+            "study-117": "Обучение (ФЗ-117)",
+            "test-117": "Тест (ФЗ-117)",
+            "study-152": "Обучение (ФЗ-152)",
+            "test-152": "Тест (ФЗ-152)",
+            "studytest-152": "Самопроверка (ФЗ-152)",  # <-- ДОБАВЛЕНА ВАША НОВАЯ СТРОКА
+            "study": "Обучение (Общее)",
+            "test": "Тест (Общий)",
+        }
 
         results = []
         for session in abandoned_sessions:
-            first_event_details = {}  # Инициализируем как пустой dict
+            # --- ИСПРАВЛЕНИЕ: Шаг 1. Инициализируем переменные по умолчанию ---
             client_ip = "N/A"
             user_info_from_event = {}  # Инициализируем как пустой dict
+            first_event_details = {}
+            page_name = session.page_from_event  # <-- Получаем page из запроса
             if session.first_event_details_text:
                 try:
                     first_event_details = json.loads(session.first_event_details_text)
-                    if isinstance(first_event_details, dict):
-                        client_ip = first_event_details.get("ip", "N/A")
-                        user_info_from_event = first_event_details.get("userInfo", {})
-                    else:
+                    if not isinstance(first_event_details, dict):
                         current_app.logger.warning(
                             f"Parsed details is not a dict for session {session.session_id}"
                         )
-                        first_event_details = {}  # Сбрасываем до пустого словаря
-                        user_info_from_event = {}
+                        first_event_details = (
+                            {}
+                        )  # Сбрасываем, если парсинг дал не словарь
                 except (json.JSONDecodeError, TypeError) as e:
                     current_app.logger.warning(
                         f"Could not parse details text for session {session.session_id}: {e}"
                     )
-                    first_event_details = {}  # Сбрасываем до пустого словаря
-                    user_info_from_event = {}
+                    first_event_details = {}
+
+            # --- ИСПРАВЛЕНИЕ: Шаг 3. ВСЕГДА извлекаем IP и UserInfo из 'details' ---
+            # (first_event_details будет {} если парсинг не удался, .get() безопасен)
+            client_ip = first_event_details.get("ip", "N/A")
+            user_info_from_event = first_event_details.get("userInfo", {})
+
+            # --- ИСПРАВЛЕНИЕ: Шаг 4. Резервный поиск page_name (старая логика) ---
+            if not page_name:
+                page_name = first_event_details.get("page")
+
+            # --- Дальнейшая логика (определение userInfo и sessionName) остается без изменений ---
+
             # --- ЛОГИКА ОПРЕДЕЛЕНИЯ USER INFO ---
             user = users_map.get(session.persistent_id)
 
             if user:
-                # 1. Лучший случай: Пользователь найден в таблице users
                 user_info = {"lastName": user.lastname, "firstName": user.firstname}
             elif user_info_from_event and user_info_from_event.get("lastName"):
-                # 2. Пользователя нет, но есть userInfo в деталях события
                 user_info = {
                     "lastName": user_info_from_event.get("lastName", "N/A"),
                     "firstName": user_info_from_event.get("firstName", "N/A"),
-                    # Можно добавить отчество и должность, если нужно
-                    # 'middleName': user_info_from_event.get('middleName'),
                     "source": "event_log",
                 }
-                # Добавляем пометку, что данные из лога
             elif session.persistent_id:
-                # 3. Пользователя нет, userInfo в событии нет, но есть persistent_id
                 user_info = {
                     "lastName": "N/A",
                     "firstName": f"ID: {str(session.persistent_id)[:8]}...",
                 }
             else:
-                # 4. Совсем ничего нет
                 user_info = {"lastName": "N/A", "firstName": "N/A"}
-            # --- КОНЕЦ ЛОГИКИ ОПРЕДЕЛЕНИЯ USER INFO ---
 
+            # --- ЛОГИКА Определения sessionType и sessionName ---
+            session_type_for_filter = "unknown"
+            session_name_for_display = "Неизвестно"
+            primary_type_key = None
+            if page_name:
+                primary_type_key = page_name
+            elif session.session_type_from_event:
+                primary_type_key = event_type_map.get(
+                    session.session_type_from_event, "unknown"
+                )
+
+            if primary_type_key:
+                if "study" in primary_type_key:
+                    session_type_for_filter = "study"
+                elif "test" in primary_type_key:
+                    session_type_for_filter = "test"
+                else:
+                    session_type_for_filter = "other"
+                session_name_for_display = session_name_map.get(
+                    primary_type_key, primary_type_key
+                )
+
+            # --- Сборка результата ---
             results.append(
                 {
                     "sessionId": session.session_id,
-                    "sessionType": session_type_map.get(
-                        session.session_type, "unknown"
-                    ),
+                    "sessionType": session_type_for_filter,
+                    "sessionName": session_name_for_display,
                     "startTime": (
                         session.start_time.isoformat() if session.start_time else "N/A"
                     ),
-                    "userInfo": user_info,  # Используем собранный userInfo
-                    "clientIp": client_ip,
+                    "userInfo": user_info,
+                    "clientIp": client_ip,  # <-- Теперь здесь будет правильный IP
                     "violationCounts": {
                         "focusLoss": session.focus_loss_count or 0,
                         "screenshots": session.screenshot_count or 0,
@@ -1038,7 +1520,7 @@ def get_abandoned_sessions():
             )
 
         current_app.logger.info(
-            f"Returning {len(results)} abandoned/unsuccessful sessions (safe JSON parsing)"
+            f"Returning {len(results)} abandoned/unsuccessful sessions (using split type/name)"
         )
         return jsonify(results), 200
 
@@ -1243,3 +1725,77 @@ def get_dashboard_stats():
     except Exception as e:
         current_app.logger.error(f"Error in get_dashboard_stats: {e}", exc_info=True)
         return jsonify({"status": "error", "message": "Failed to calculate stats"}), 500
+
+
+# --- 👇 НОВЫЕ ЭНДПОИНТЫ ДЛЯ УПРАВЛЕНИЯ НАСТРОЙКАМИ 👇 ---
+
+
+@api_bp.route("/settings", methods=["GET"])
+@admin_required
+def get_settings():
+    """Возвращает все системные настройки."""
+    try:
+        settings_from_db = SystemSetting.query.all()
+        # Преобразуем в словарь для удобства фронтенда
+        settings_dict = {s.key: s.value for s in settings_from_db}
+        return jsonify(settings_dict), 200
+    except Exception as e:
+        current_app.logger.error(f"Error in get_settings: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
+@api_bp.route("/settings", methods=["POST"])
+@admin_required
+def update_settings():
+    """Обновляет одну или несколько системных настроек."""
+    data = request.get_json()
+    if not data or not isinstance(data, dict):
+        return jsonify({"status": "error", "message": "Invalid data format"}), 400
+
+    try:
+        updated_keys = []
+        allowed_keys = {
+            "ORG_NAME",
+            "ORG_ADDRESS_LINE_1",
+            "ORG_CONTACTS",
+            "SIGNATORY_1_TITLE",
+            "SIGNATORY_1_NAME",
+            "SIGNATORY_2_TITLE",
+            "SIGNATORY_2_NAME",
+        }  # Белый список ключей для безопасности
+
+        for key, value in data.items():
+            if key not in allowed_keys:
+                current_app.logger.warning(
+                    f"Admin tried to update non-allowed key: {key}"
+                )
+                continue  # Игнорируем недопустимые ключи
+
+            # Находим настройку по ключу
+            setting = db.session.get(SystemSetting, key)
+            if setting:
+                setting.value = str(value)  # Приводим к строке
+                updated_keys.append(key)
+            else:
+                # Если настройка (почему-то) не существует, создаем ее
+                new_setting = SystemSetting(key=key, value=str(value))
+                db.session.add(new_setting)
+                updated_keys.append(key)
+
+        db.session.commit()
+
+        current_app.logger.info(f"Admin updated settings: {', '.join(updated_keys)}")
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": f"Settings updated: {', '.join(updated_keys)}",
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error in update_settings: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal server error"}), 500

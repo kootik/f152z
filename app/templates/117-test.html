@@ -8,6 +8,7 @@
             // Эта переменная будет заполнена Flask/Jinja2 при рендеринге страницы
             const API_KEY = "{{ frontend_api_key|safe }}";
             console.log("API Key loaded:", API_KEY ? "Loaded" : "Not Found");
+            const PDF_SETTINGS = {{ pdf_settings|tojson|safe }};
         </script>
         <!-- Подключение jsPDF -->
         <script src="{{ url_for('static', filename='jspdf.umd.min.js') }}"></script>
@@ -1739,10 +1740,10 @@
             <div class="pdf-header">
             <img src="{{ url_for('static', filename='Coat_of_Arms_of_Krasnodar_Krai.svg') }}"
                  alt="" class="emblem" onerror="this.style.display='none'"/>
-            <div class="ministry-name">Министерство природных ресурсов Краснодарского края</div>
+                <div class="ministry-name">{{ pdf_settings.get('ORG_NAME', 'Министерство...') }}</div>
             <div class="ministry-details">
-                350020, г. Краснодар, ул. Северная, д. 275/1 <br>
-                Тел.: +7 (861) 279-00-49, E-mail: mprkk@krasnodar.ru, Сайт: mpr.krasnodar.ru
+                    {{ pdf_settings.get('ORG_ADDRESS_LINE_1', 'г. Краснодар...') }} <br>
+                    {{ pdf_settings.get('ORG_CONTACTS', 'Тел.: ...') }}
             </div>
             <div class="contacts-divider"></div>
         </div>
@@ -1788,17 +1789,17 @@
                 <p style="margin-bottom: 3mm;">Обучающие:</p>
                 <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
                     <tr>
-                        <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">Начальник отдела ИТОиЗИ<br></td>
+                            <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">{{ pdf_settings.get('SIGNATORY_1_TITLE', 'Должность 1') }}<br></td>
                         <td style="width: 15%; text-align: center; padding-bottom: 3mm; vertical-align: bottom;"> <span class="pdf-signature-line" style="width:80px;"></span></td>
-                        <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">Кучуров Е.В.</span>)</td>
+                            <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">{{ pdf_settings.get('SIGNATORY_1_NAME', 'ФИО 1') }}</span>)</td>
                     </tr>
                     <tr>
                         <td colspan="3" style="font-size: 8pt; text-align: center; padding-left: 100px; padding-right: 50px;">(подпись)</td>
                     </tr>
                      <tr><td colspan="3" style="height: 2mm;"></td></tr> <tr>
-                        <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">Главный консультант отдела ИТОиЗИ<br></td>
+                            <td style="width: 50%; padding-bottom: 3mm; vertical-align: top;">{{ pdf_settings.get('SIGNATORY_2_TITLE', 'Должность 2') }}<br></td>
                         <td style="width: 15%; text-align: center; padding-bottom: 3mm; vertical-align: bottom;"><span class="pdf-signature-line" style="width:80px;"></span></td>
-                        <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">Каныгин А.С.</span>)</td>
+                            <td style="width: 35%; padding-bottom: 3mm; vertical-align: bottom;">(<span class="pdf-signature-fio">{{ pdf_settings.get('SIGNATORY_2_NAME', 'ФИО 2') }}</span>)</td>
                     </tr>
                      <tr>
                         <td colspan="3" style="font-size: 8pt; text-align: center; padding-left: 100px; padding-right: 50px;">(подпись)</td>
@@ -2697,7 +2698,8 @@
                     // Логируем начало теста немедленно
                     await this.logEventToServer('test_started', {
                         userInfo: this.userInfo,
-                        persistentId: this.persistentId
+                        persistentId: this.persistentId,
+						page: 'test-117'
                     });
 
                     // Активируем водяной знак

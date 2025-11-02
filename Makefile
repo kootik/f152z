@@ -1,80 +1,250 @@
-# Makefile
-.PHONY: help build build-dev test format lint security run run-dev logs stop clean shell db-migrate
+# f152z Makefile
+# Версия: 3.2 (Локализованная справка)
+# Версия с русскоязычными описаниями для команды 'help'.
+# --- Базовая настройка ---
+# Явно указываем BASH, чтобы избежать проблем с синтаксисом в скриптах.
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
 
-# --- Переменные ---
-DOCKER_REGISTRY ?= ghcr.io
-DOCKER_ORG ?= kootik
-DOCKER_IMAGE ?= fztests
-DOCKER_TAG ?= latest
-FULL_IMAGE_NAME = $(DOCKER_REGISTRY)/$(DOCKER_ORG)/$(DOCKER_IMAGE):$(DOCKER_TAG)
+# --- Переменные конфигурации ---
+ENV_FILE ?= prod.env
+BACKUP_DIR ?= backups
+LOG_DIR ?= .logs
 
-# --- Команды ---
+# --- Определение команды Docker Compose (Исправленная версия) ---
+# Надёжное определение команды Docker Compose с приоритетом для плагина (V2).
+# Сначала пытаемся найти плагин 'docker compose'.
+COMPOSE_V2 := $(shell docker compose version &>/dev/null && echo "docker compose")
+# Затем, как резервный вариант, ищем 'docker-compose' (V1).
+COMPOSE_V1 := $(shell command -v docker-compose 2>/dev/null)
 
-help: ## Показать это справочное сообщение.
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' 
+# Используем 'docker compose' (V2), если он доступен, иначе 'docker-compose' (V1).
+COMPOSE_CMD := $(or $(COMPOSE_V2),$(COMPOSE_V1))
 
-build: ## Build Docker image
-	docker build -t $(FULL_IMAGE_NAME) \
-		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
-		--build-arg VCS_REF=`git rev-parse --short HEAD` \
-		--build-arg VERSION=$(DOCKER_TAG) \
-		.
-build-dev: ## Build development image
-	docker build --target tester -t $(DOCKER_IMAGE):dev .
+# Если ни одна команда не найдена, прерываем с ошибкой.
+ifeq ($(COMPOSE_CMD),)
+	$(error "Не удалось найти 'docker compose' или 'docker-compose'. Проверьте вашу установку Docker.")
+endif
+
+COMPOSE = $(COMPOSE_CMD) --env-file $(ENV_FILE)
 
 
-# --- КОМАНДЫ ДЛЯ КАЧЕСТВА КОДА ---
-format: build-dev ## Автоматически отформатировать весь Python-код (black, isort).
-	docker run --rm -v $(PWD):/app $(DOCKER_IMAGE):dev sh -c "black . && isort ."
-lint: build-dev ## Проверить форматирование и качество кода (flake8, black, isort).
-	docker run --rm -v $(PWD):/app $(DOCKER_IMAGE):dev sh -c "flake8 app/ && black --check app/ && isort --check-only app/"
+# --- Цвета для вывода ---
+RED    :=  \033[0;31m
+GREEN  :=  \033[0;32m
+YELLOW :=  \033[0;33m
+BLUE   :=  \033[0;34m
+NC     :=  \033[0m
 
-test: build-dev ## Запустить Pytest, используя код с хост-машины.
-	docker run --rm -v $(PWD):/app $(DOCKER_IMAGE):dev pytest tests/ -v
-security: build-dev ## Запустить сканеры безопасности bandit и safety.
-	docker run --rm -v $(PWD):/app $(DOCKER_IMAGE):dev sh -c "bandit -r app/ && safety check -r requirements.txt"
+# ==============================================================================
+# СПРАВКА - Динамически генерирует справку из комментариев
+# ==============================================================================
+.PHONY: help
+help: ## 📖 Показать это справочное сообщение
+	@echo -e "$(BLUE)Команды для управления проектом f152z$(NC)"
+	@echo "---------------------------------"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo "---------------------------------"
+	@echo ""
+	@echo -e "$(YELLOW)Примеры использования:$(NC)"
+	@echo "  make up       - Запустить все сервисы"
+	@echo "  make logs     - Просмотреть логи"
+	@echo "  make backup   - Создать резервную копию"
 
-# --- КОМАНДЫ ДЛЯ УПРАВЛЕНИЯ КОНТЕЙНЕРАМИ ---
-run: ## Запустить приложение с помощью docker-compose (production).
-	docker compose up -d --build
+# ==============================================================================
+# УПРАВЛЕНИЕ СЕРВИСАМИ
+# ==============================================================================
+.PHONY: up
+up: ## 🚀 Запустить все сервисы в фоновом режиме
+	@echo -e "$(BLUE)Запускаю сервисы...$(NC)"
+	@$(COMPOSE) up -d
+	@echo -e "$(GREEN)✓ Сервисы успешно запущены.$(NC)"
 
-run-dev: ## Запустить в режиме разработки (требует docker-compose.dev.yml).
-	docker compose -f docker compose.yml -f docker-compose.dev.yml up
+.PHONY: down
+down: ## 🛑 Остановить все сервисы
+	@echo -e "$(BLUE)Останавливаю сервисы...$(NC)"
+	@$(COMPOSE) down
+	@echo -e "$(GREEN)✓ Сервисы остановлены.$(NC)"
 
-logs: ## Показать логи запущенных контейнеров.
-	docker compose logs -f
+.PHONY: restart
+restart: ## 🔄 Перезапустить все сервисы (down и up)
+	@$(MAKE) down
+	@$(MAKE) up
 
-stop: ## Остановить все контейнеры.
-	docker compose down
+.PHONY: status
+status: ## 📊 Показать статус сервисов
+	@$(COMPOSE) ps
 
-clean: ## Остановить контейнеры и удалить все данные (тома).
-	docker compose down -v
-	docker system prune -f
+# ==============================================================================
+# ЛОГИ
+# ==============================================================================
+.PHONY: logs
+logs: ## 📜 Показать и отслеживать логи всех сервисов
+	@$(COMPOSE) logs -f
 
-push: build ## Отправить production-образ в registry.
-	docker push $(FULL_IMAGE_NAME)
+.PHONY: logs-app
+logs-app: ## 📜 Показать и отслеживать логи сервиса 'app'
+	@$(COMPOSE) logs -f app
 
-deep-clean: ## Удалить все файлы кэша Python и Pytest.
-	@find . -type d -name "__pycache__" -exec rm -r {} +
-	@rm -rf .pytest_cache
-	@echo "All cache files have been removed."
+.PHONY: logs-nginx
+logs-nginx: ## 📜 Показать и отслеживать логи сервиса 'nginx'
+	@$(COMPOSE) logs -f nginx
 
-shell: ## Открыть командную оболочку Bash в контейнере 'app'.
-	docker compose exec app /bin/bash
+# ==============================================================================
+# УПРАВЛЕНИЕ ДАННЫМИ
+# ==============================================================================
+.PHONY: backup
+backup: ## 💾 Создать сжатую резервную копию базы данных
+	@echo -e "$(BLUE)Создаю резервную копию базы данных...$(NC)"
+	@mkdir -p $(BACKUP_DIR)
+	@TIMESTAMP=$$(date +%Y-%m-%d_%H-%M-%S); \
+	FILENAME="$(BACKUP_DIR)/backup-$${TIMESTAMP}.sql.gz"; \
+	$(COMPOSE) exec -T postgres pg_dump -U flask_user -d flask_app | gzip > $$FILENAME; \
+	echo -e "$(GREEN)✓ Резервная копия успешно создана:$(NC) $$FILENAME"
 
-# --- КОМАНДЫ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ И REDIS ---
-db-migrate: ## Применить миграции базы данных.
-	docker compose exec app flask db upgrade
+.PHONY: restore
+restore: ## 📥 Восстановить базу данных из выбранной копии
+	@echo -e "$(YELLOW)Доступные резервные копии:$(NC)"
+	@ls -1 $(BACKUP_DIR)/*.sql.gz 2>/dev/null || echo "Резервные копии не найдены."
+	@echo ""
+	@read -p "Введите полное имя файла для восстановления: " backup_file; \
+	if [ -f "$$backup_file" ]; then \
+		echo -e "$(BLUE)Восстанавливаю из $$backup_file...$(NC)"; \
+		gunzip < "$$backup_file" | $(COMPOSE) exec -T postgres psql -U flask_user -d flask_app; \
+		echo -e "$(GREEN)✓ Восстановление успешно завершено.$(NC)"; \
+	else \
+		echo -e "$(RED)✗ Ошибка: Файл резервной копии не найден.$(NC)"; \
+	fi
 
-db-shell: ## Открыть консоль psql в контейнере 'postgres'.
-	docker compose exec postgres psql -U flask_user -d flask_app
+.PHONY: migrate
+migrate: ## 🧬 Выполнить миграции базы данных
+	@echo -e "$(BLUE)Выполняю миграции базы данных...$(NC)"
+	@$(COMPOSE) exec app flask db upgrade
+	@echo -e "$(GREEN)✓ Миграции успешно выполнены.$(NC)"
 
-redis-cli: ## Открыть консоль redis-cli в контейнере 'redis'.
-	docker compose exec redis redis-cli
 
-backup: ## Создать бэкап базы данных.
-	docker compose exec postgres pg_dump -U flask_user flask_app | gzip > backup_`date +%Y%m%d_%H%M%S`.sql.gz
+# ==============================================================================
+# УПРАВЛЕНИЕ API-КЛЮЧАМИ
+# ==============================================================================
+.PHONY: create-apikey
+create-apikey: ## 🔑 Создать API-ключ с определенными правами
+	@read -p "Введите имя для API-ключа (например, mobile-app-readonly): " key_name; \
+	read -p "Введите эндпоинты через запятую (например, /api/v1/users,/api/v1/posts): " endpoints; \
+	if [ -z "$$key_name" ] || [ -z "$$endpoints" ]; then \
+		echo -e "$(RED)✗ Ошибка: Имя ключа и эндпоинты не могут быть пустыми.$(NC)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(BLUE)Генерирую API-ключ...$(NC)"; \
+	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" "$$endpoints"); \
+	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Key:' | awk '{print $$2}'); \
+	if [ -n "$$API_KEY" ]; then \
+		VAR_NAME=$$(echo "$$key_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_API_KEY; \
+		echo -e "\n# API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
+		echo -e "$(GREEN)✓ API-ключ создан и сохранен в $(ENV_FILE):$(NC)"; \
+		echo -e "Переменная: $(YELLOW)$$VAR_NAME$(NC)"; \
+		echo -e "Ключ:      $(YELLOW)$$API_KEY$(NC)"; \
+	else \
+		echo -e "$(RED)✗ Ошибка: Не удалось сгенерировать API-ключ.$(NC)"; \
+	fi
 
-restore: ## Восстановить БД из бэкапа.
-	@read -p "Enter backup file name: " backup_file; \
-	gunzip < $$backup_file | docker-compose exec -T postgres psql -U flask_user flask_app
+.PHONY: create-admin-apikey
+create-admin-apikey: ## 👑 Создать ADMIN API-ключ с полным доступом
+	@read -p "Введите имя для ADMIN ключа (например, admin-script): " key_name; \
+	if [ -z "$$key_name" ]; then \
+		echo -e "$(RED)✗ Ошибка: Имя ключа не может быть пустым.$(NC)"; \
+		exit 1; \
+	fi; \
+	echo -e "$(BLUE)Генерирую ADMIN API-ключ...$(NC)"; \
+	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" "*" --admin); \
+	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Key:' | awk '{print $$2}'); \
+	if [ -n "$$API_KEY" ]; then \
+		VAR_NAME=$$(echo "$$key_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_ADMIN_API_KEY; \
+		echo -e "\n# ADMIN API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
+		echo -e "$(GREEN)✓ ADMIN API-ключ создан и сохранен в $(ENV_FILE):$(NC)"; \
+		echo -e "Переменная: $(YELLOW)$$VAR_NAME$(NC)"; \
+		echo -e "Ключ:      $(YELLOW)$$API_KEY$(NC)"; \
+	else \
+		echo -e "$(RED)✗ Ошибка: Не удалось сгенерировать ADMIN API-ключ.$(NC)"; \
+	fi
+
+
+# ==============================================================================
+# ОТЛАДКА И ДИАГНОСТИКА
+# ==============================================================================
+.PHONY: shell
+shell: ## 💻 Открыть командную оболочку (bash) в контейнере 'app'
+	@$(COMPOSE) exec app /bin/bash
+
+.PHONY: shell-db
+shell-db: ## 🗄️ Открыть командную оболочку (psql) для базы данных
+	@$(COMPOSE) exec postgres psql -U flask_user -d flask_app
+
+.PHONY: shell-redis
+shell-redis: ## ⚡ Открыть интерфейс командной строки Redis (redis-cli)
+	@$(COMPOSE) exec redis redis-cli
+
+.PHONY: test
+test: ## ✅ Запустить тесты приложения (pytest)
+	@echo -e "$(BLUE)Запускаю тесты...$(NC)"
+	@$(COMPOSE) exec app pytest
+
+.PHONY: info
+info: ## ℹ️ Показать подробную информацию о развертывании
+	@echo -e "$(BLUE)Информация о развертывании f152z$(NC)"
+	@echo "---------------------------"
+	@echo -e "Файл окружения: $(GREEN)$(ENV_FILE)$(NC)"
+	@echo -e "Команда Compose:  $(GREEN)$(COMPOSE_CMD)$(NC)"
+	@echo ""
+	@echo -e "$(BLUE)Статус сервисов:$(NC)"
+	@$(COMPOSE) ps --format "table {{.Name}}\t{{.State}}\t{{.Ports}}"
+
+.PHONY: validate
+validate: ## ✔️ Проверить конфигурацию docker-compose
+	@echo -e "$(BLUE)Проверяю конфигурацию docker-compose...$(NC)"
+	@$(COMPOSE) config --quiet && echo -e "$(GREEN)✓ Конфигурация корректна.$(NC)" || echo -e "$(RED)✗ Конфигурация содержит ошибки.$(NC)"
+
+
+# ==============================================================================
+# ОБСЛУЖИВАНИЕ
+# ==============================================================================
+.PHONY: update
+update: ## ⬆️ Обновить приложение (скачать код и перезапустить)
+	@echo -e "$(BLUE)Обновляю приложение...$(NC)"
+	@bash update.sh
+	@echo -e "$(GREEN)✓ Процесс обновления завершен.$(NC)"
+
+.PHONY: monitor
+monitor: ## 📈 Показать использование ресурсов (требует monitor.sh)
+	@bash monitor.sh
+
+.PHONY: clean-backups
+clean-backups: ## 🗑️ Удалить резервные копии старше 30 дней
+	@echo -e "$(BLUE)Очищаю старые резервные копии...$(NC)"
+	@find $(BACKUP_DIR) -type f -name "*.sql.gz" -mtime +30 -delete
+	@echo -e "$(GREEN)✓ Старые резервные копии удалены.$(NC)"
+
+.PHONY: clean-logs
+clean-logs: ## 🗑️ Удалить логи старше 30 дней
+	@echo -e "$(BLUE)Очищаю старые логи...$(NC)"
+	@find $(LOG_DIR) -type f -name "*.log" -mtime +30 -delete
+	@echo -e "$(GREEN)✓ Старые логи удалены.$(NC)"
+
+.PHONY: prune
+prune: ## 🧹 Удалить неиспользуемые ресурсы Docker
+	@echo -e "$(YELLOW)Эта команда удалит все остановленные контейнеры, неиспользуемые сети и образы.$(NC)"
+	@docker system prune
+
+.PHONY: destroy
+destroy: ## 🔥 ОПАСНО: Остановить сервисы и удалить ВСЕ данные
+	@echo -e "$(RED)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!$(NC)"
+	@echo -e "$(RED)!! ВНИМАНИЕ: ВЫ СОБИРАЕТЕСЬ НАВСЕГДА УДАЛИТЬ ВСЕ ДАННЫЕ !!$(NC)"
+	@echo -e "$(RED)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!$(NC)"
+	@read -p "Это действие необратимо. Введите 'YES' для подтверждения: " confirm; \
+	if [ "$$confirm" = "YES" ]; then \
+		echo -e "$(BLUE)Уничтожаю все данные...$(NC)"; \
+		$(COMPOSE) down -v; \
+		echo -e "$(GREEN)✓ Все данные сервисов были уничтожены.$(NC)"; \
+	else \
+		echo -e "$(YELLOW)Отменено.$(NC)"; \
+	fi

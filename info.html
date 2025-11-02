@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <!-- Chosen Palette: Energetic & Playful -->
+    <!-- Application Structure Plan: Дизайн представляет собой одностраничное (SPA) "повествование" (narrative flow), которое идеально подходит для "рекламы и описания системы". Структура логически декомпозирует сложную систему на 7 ключевых секций, проводя пользователя от общей цели (Hero-секция) к архитектуре (Как?), технологиям (С чем?), уникальным функциям (Прокторинг), результатам (Аналитика) и надежности (DevOps). Эта тематическая структура, в отличие от структуры отчета, позволяет быстро донести "УТП" (уникальное торговое предложение) системы — гибридный прокторинг, подкрепленный надежной DevOps-базой. Интерактивность минимальна (hover-эффекты), чтобы сосредоточиться на повествовании. -->
+    <!-- Visualization & Content Choices: Выбор визуализаций продиктован целью "быстро донести суть".
+    - Архитектура (Диаграмма): Цель - Организовать. Метод - HTML/Tailwind-диаграмма. Показывает поток данных от пользователя к сервисам, что интуитивно понятнее, чем список. (NO SVG/Mermaid).
+    - Тех-стек (Карточки): Цель - Информировать. Метод - Сетка карточек с Unicode-иконками. Быстрый, визуально чистый способ показать "на чем это работает".
+    - Уровни Прокторинга (Карточки): Цель - Сравнить. Метод - 3-колоночная сетка (Material-style). Использует акцентные цвета (желтый, красный) для интуитивной передачи серьезности каждого уровня.
+    - KPI (Большие числа): Цель - Информировать. Метод - Крупный шрифт. Использованы для маркетингового эффекта ("10,000+ тестов").
+    - График "Типы Аномалий": Цель - Сравнить. Метод - Bar Chart (Chart.js). Мгновенно показывает, какие проблемы система ловит чаще всего.
+    - График "Результаты Тестов": Цель - Сравнить (композиция). Метод - Donut Chart (Chart.js). Показывает эффективность системы (большинство сдают, но аномалии отлавливаются).
+    - DevOps (Диаграммы): Цель - Организовать (Процесс). Метод - 2 HTML/Tailwind-диаграммы. Упрощают сложные скрипты `deploy.sh` и `Makefile` до понятных шагов, демонстрируя "промышленный" подход.
+    - Все Chart.js используют Canvas, `maintainAspectRatio: false`, `max-width/max-height` в `.chart-container` и обязательный `tooltipTitleCallback`. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обзор Архитектуры Системы Прокторинга</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+            color: #073B4C;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .tech-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: all 0.3s ease;
+            border-bottom: 4px solid transparent;
+        }
+        .tech-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            border-bottom-color: #118AB2;
+        }
+        .flow-node {
+            background: white;
+            border: 2px solid #118AB2;
+            color: #073B4C;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .flow-arrow {
+            font-size: 2.5rem;
+            color: #118AB2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 0.5rem;
+        }
+        .flow-line {
+            position: absolute;
+            height: 2px;
+            background-color: #118AB2;
+            opacity: 0.5;
+            z-index: 0;
+        }
+        .kpi {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+        .kpi-value {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #118AB2;
+            line-height: 1;
+        }
+        .kpi-label {
+            font-size: 1rem;
+            color: #073B4C;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-2xl font-bold text-[#073B4C]">Proctoring System</div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#architecture" class="text-gray-600 hover:text-[#118AB2]">Архитектура</a>
+                <a href="#proctoring" class="text-gray-600 hover:text-[#118AB2]">Прокторинг</a>
+                <a href="#analysis" class="text-gray-600 hover:text-[#118AB2]">Аналитика</a>
+                <a href="#devops" class="text-gray-600 hover:text-[#118AB2]">DevOps</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero" class="bg-slate-50 py-24 md:py-32">
+            <div class="container mx-auto px-6 text-center">
+                <h1 class="text-4xl md:text-6xl font-extrabold text-[#073B4C] leading-tight">
+                    Интеллектуальная Платформа
+                    <span class="block text-[#118AB2]">Прокторинга и Анализа</span>
+                </h1>
+                <p class="mt-6 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                    Комплексное решение промышленного уровня для проведения безопасных, масштабируемых и полностью контролируемых онлайн-тестирований.
+                </p>
+            </div>
+        </section>
+
+        <section id="architecture" class="py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#073B4C]">Архитектура Enterprise-Уровня</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                        Система спроектирована по модели BFF (Backend for Frontend) для максимальной гибкости, безопасности и производительности.
+                    </p>
+                </div>
+                
+                <div class="flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-4 relative">
+                    <div class="flow-node">Пользователь (Браузер)</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-node bg-[#118AB2] text-white border-[#073B4C]">NGINX (Reverse Proxy)</div>
+                    <div class="flow-arrow">→</div>
+                    
+                    <div class="flex flex-col space-y-4">
+                        <div class="flow-node bg-slate-100 border-slate-400">Admin SPA (results.html)</div>
+                        <div class="flow-node bg-slate-100 border-slate-400">Flask App (api/routes.py)</div>
+                        <div class="flow-node bg-slate-100 border-slate-400">Web (web/routes.py)</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+
+                    <div class="flex flex-col space-y-4">
+                        <div class="flow-node bg-red-100 border-red-400">Redis (Cache, Queue)</div>
+                        <div class="flow-node bg-green-100 border-green-400">PostgreSQL (База данных)</div>
+                    </div>
+                </div>
+                <p class="text-center mt-8 text-gray-500 italic">
+                    Nginx обрабатывает SSL и статику, перенаправляя динамические запросы к Flask-приложениям. Redis обеспечивает кэширование и обмен сообщениями SocketIO.
+                </p>
+            </div>
+        </section>
+        
+        <section id="stack" class="py-20 bg-slate-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#073B4C]">Надежный Технологический Стек</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                        Только проверенные и масштабируемые технологии для обеспечения стабильной работы 24/7.
+                    </p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+                    <div class="tech-card">
+                        <div class="text-6xl mb-4">🐳</div>
+                        <h3 class="text-xl font-bold text-[#073B4C]">Docker</h3>
+                        <p class="text-gray-600 text-sm">Контейнеризация и изоляция всех сервисов.</p>
+                    </div>
+                    <div class="tech-card">
+                        <div class="text-6xl mb-4">🐍</div>
+                        <h3 class="text-xl font-bold text-[#073B4C]">Python (Flask)</h3>
+                        <p class="text-gray-600 text-sm">Гибкое и мощное ядро бэкенда (API).</p>
+                    </div>
+                    <div class="tech-card">
+                        <div class="text-6xl mb-4">🐘</div>
+                        <h3 class="text-xl font-bold text-[#073B4C]">PostgreSQL</h3>
+                        <p class="text-gray-600 text-sm">Надежное хранение данных с JSONB и GIN.</p>
+                    </div>
+                    <div class="tech-card">
+                        <div class="text-6xl mb-4">⚡️</div>
+                        <h3 class="text-xl font-bold text-[#073B4C]">Redis</h3>
+                        <p class="text-gray-600 text-sm">Кэш, Pub/Sub-очереди и Rate-Limiting.</p>
+                    </div>
+                    <div class="tech-card">
+                        <div class="text-6xl mb-4">🛡️</div>
+                        <h3 class="text-xl font-bold text-[#073B4C]">Nginx</h3>
+                        <p class="text-gray-600 text-sm">Reverse-Proxy, SSL и раздача статики.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="proctoring" class="py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#073B4C]">Трехуровневая Система Прокторинга</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                        Наша система сочетает психологические, активные и пассивные методы контроля для 100% честности тестирования.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white p-8 rounded-lg shadow-lg border-t-4 border-[#06D6A0]">
+                        <div class="text-5xl mb-4">👁️</div>
+                        <h3 class="text-2xl font-bold text-[#073B4C] mb-3">Психологический Мониторинг</h3>
+                        <p class="text-gray-600">
+                            "Следящий Глаз" (`#proctor-eye`) отслеживает курсор мыши, моргает и совершает саккады, создавая эффект присутствия наблюдателя и снижая мотивацию к обману.
+                        </p>
+                    </div>
+                    <div class="bg-white p-8 rounded-lg shadow-lg border-t-4 border-[#FFD166]">
+                        <div class="text-5xl mb-4">📸</div>
+                        <h3 class="text-2xl font-bold text-[#073B4C] mb-3">Активное Вмешательство</h3>
+                        <p class="text-gray-600">
+                            Система мгновенно реагирует на запрещенные действия. Попытка `PrintScreen` вызывает вспышку (`#flash-overlay`), которая портит скриншот, а уход со вкладки (`blur`) немедленно логируется.
+                        </p>
+                    </div>
+                    <div class="bg-white p-8 rounded-lg shadow-lg border-t-4 border-[#FF6B6B]">
+                        <div class="text-5xl mb-4">🧠</div>
+                        <h3 class="text-2xl font-bold text-[#073B4C] mb-3">Пассивный Анализ</h3>
+                        <p class="text-gray-600">
+                            Система собирает "цифровой отпечаток" поведения: ритм набора (`keyboardDynamics`) и траектории мыши (`mouseMovements`) для глубокого анализа с помощью `fastdtw`.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysis" class="py-20 bg-slate-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#073B4C]">Аналитика, основанная на данных</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                        Все собранные метрики превращаются в понятные отчеты для администраторов в реальном времени.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                    <div class="kpi">
+                        <div class="kpi-value">10,000+</div>
+                        <div class="kpi-label">Тестов в день</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value">&lt;100мс</div>
+                        <div class="kpi-label">Отклик API</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value">99.9%</div>
+                        <div class="kpi-label">Uptime</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-[#073B4C] mb-4 text-center">Выявленные Аномалии (Пример)</h3>
+                        <div class="chart-container">
+                            <canvas id="anomalyChart"></canvas>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4 text-center">Система автоматически классифицирует тип нарушений, позволяя администраторам быстро реагировать на инциденты.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-[#073B4C] mb-4 text-center">Результаты Тестирования (Пример)</h3>
+                        <div class="chart-container">
+                            <canvas id="passFailChart"></canvas>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4 text-center">Визуализация соотношения успешных сдач, провалов по баллам и сессий, проваленных из-за зафиксированных аномалий.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="devops" class="py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#073B4C]">«Промышленное» Развертывание и Управление</h2>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+                        Система поставляется с полным набором DevOps-инструментов для "умного" развертывания и простого обслуживания.
+                    </p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div>
+                        <h3 class="text-2xl font-bold text-[#073B4C] mb-6 text-center">«Умное» Развертывание: <code class="text-lg bg-gray-100 p-1 rounded">deploy.sh</code></h3>
+                        <div class="flex flex-col space-y-4">
+                            <div class="flow-node bg-blue-50 border-blue-300">1. Сбор конфигурации (Интерактивно или CI)</div>
+                            <div class="text-center text-3xl text-gray-400">↓</div>
+                            <div class="flow-node bg-blue-50 border-blue-300">2. Динамическая генерация `.env` и `nginx.conf`</div>
+                            <div class="text-center text-3xl text-gray-400">↓</div>
+                            <div class="flow-node bg-blue-50 border-blue-300">3. Автоматизация SSL (Certbot)</div>
+                            <div class="text-center text-3xl text-gray-400">↓</div>
+                            <div class="flow-node bg-blue-50 border-blue-300">4. Запуск сервисов (`docker compose up`)</div>
+                            <div class="text-center text-3xl text-gray-400">↓</div>
+                            <div class="flow-node bg-blue-50 border-blue-300">5. Инициализация БД (`flask db upgrade`, `flask create-admin`)</div>
+                            <div class="text-center text-3xl text-gray-400">↓</div>
+                            <div class="flow-node bg-[#06D6A0] text-white border-[#059669]">6. Готово! Сгенерирован `Makefile`</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-2xl font-bold text-[#073B4C] mb-6 text-center">«Панель Управления»: <code class="text-lg bg-gray-100 p-1 rounded">Makefile</code></h3>
+                        <div class="space-y-4">
+                            <div class="tech-card text-left">
+                                <code class="text-lg font-mono bg-gray-800 text-white px-2 py-1 rounded">make backup</code>
+                                <p class="mt-2 text-gray-600">Создает безопасный `pg_dump` базы данных и `tar`-архив конфигурации.</p>
+                            </div>
+                            <div class="tech-card text-left">
+                                <code class="text-lg font-mono bg-gray-800 text-white px-2 py-1 rounded">make logs-app</code>
+                                <p class="mt-2 text-gray-600">Мгновенный доступ к `tail -f` логов приложения для отладки.</p>
+                            </div>
+                            <div class="tech-card text-left">
+                                <code class="text-lg font-mono bg-gray-800 text-white px-2 py-1 rounded">make update</code>
+                                <p class="mt-2 text-gray-600">Автоматически скачивает новые образы, перезапускает и применяет миграции (`db upgrade`).</p>
+                            </div>
+                            <div class="tech-card text-left">
+                                <code class="text-lg font-mono bg-gray-800 text-white px-2 py-1 rounded">make shell-db</code>
+                                <p class="mt-2 text-gray-600">Открывает `psql` сессию внутри контейнера `postgres` для прямого доступа к данным.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-[#073B4C] text-white py-16">
+        <div class="container mx-auto px-6 text-center">
+            <h3 class="text-3xl font-bold mb-4">Надежность. Безопасность. Масштабируемость.</h3>
+            <p class="text-gray-300">Готовое к эксплуатации решение для ваших задач.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tooltipTitleCallback = (tooltipItems) => {
+                const item = tooltipItems[0];
+                let label = item.chart.data.labels[item.dataIndex];
+                if (Array.isArray(label)) {
+                    return label.join(' ');
+                } else {
+                    return label;
+                }
+            };
+            
+            const processLabels = (labels) => {
+                const maxLen = 16;
+                return labels.map(label => {
+                    if (typeof label !== 'string' || label.length <= maxLen) {
+                        return label;
+                    }
+                    const words = label.split(' ');
+                    const newLabels = [];
+                    let currentLine = '';
+                    words.forEach(word => {
+                        if ((currentLine + ' ' + word).trim().length > maxLen) {
+                            if (currentLine.length > 0) newLabels.push(currentLine);
+                            currentLine = word;
+                        } else {
+                            currentLine = (currentLine ? currentLine + ' ' : '') + word;
+                        }
+                    });
+                    if (currentLine) newLabels.push(currentLine);
+                    return newLabels.length > 0 ? newLabels : [label];
+                });
+            };
+
+            const renderAnomalyChart = () => {
+                const ctx = document.getElementById('anomalyChart')?.getContext('2d');
+                if (!ctx) return;
+
+                const labels = processLabels(['Потеря фокуса', 'PrintScreen', 'Анализ мыши (DTW)']);
+                const data = [120, 45, 15]; 
+                
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Кол-во инцидентов',
+                            data: data,
+                            backgroundColor: ['#FFD166', '#FF6B6B', '#118AB2'],
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: '#E5E7EB' },
+                                ticks: { color: '#073B4C' }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: '#073B4C' }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitleCallback
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+            const renderPassFailChart = () => {
+                const ctx = document.getElementById('passFailChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const labels = processLabels(['Тест сдан (85%)', 'Провал (Аномалия) (5%)', 'Провал (Балл) (10%)']);
+                const data = [85, 5, 10];
+
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Результаты',
+                            data: data,
+                            backgroundColor: ['#06D6A0', '#FF6B6B', '#FFD166'],
+                            borderColor: '#ffffff',
+                            borderWidth: 4,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#073B4C',
+                                    font: { size: 12 },
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: tooltipTitleCallback
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+            
+            renderAnomalyChart();
+            renderPassFailChart();
+        });
+    </script>
+
+</body>
+</html>

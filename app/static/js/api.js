@@ -4,8 +4,9 @@
  * Version: 2.0 (Refactored with robust CSRF handling)
  */
 
-import { setCurrentPageResults, setAllAbandonedSessions, setPaginationState, resultsPerPage } from './state.js';
+import { setCurrentPageResults, setAllAbandonedSessions, setPaginationState, resultsPerPage, setDashboardStats } from './state.js'; // <-- ДОБАВЛЕН setDashboardStats
 import * as ui from './ui.js';
+import { /*...,*/ registrySortKey, registrySortDir } from './state.js'; 
 
 class APIClient {
     constructor(baseURL = '') {
@@ -14,7 +15,24 @@ class APIClient {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
     }
+// --- 👇 НОВЫЙ МЕТОД ДЛЯ ЗАГРУЗКИ СТАТИСТИКИ 👇 ---
+    async fetchFilteredStats() {
+        try {
+            // Получаем текущие фильтры (можно взять из state или с UI)
+            const statusFilter = document.getElementById('statusFilter');
+            const status = statusFilter ? statusFilter.value : '';
+            const presetFilter = document.querySelector('.preset-btn.active');
+            const preset = presetFilter ? presetFilter.dataset.preset : 'all';
 
+            // Вызываем новый эндпоинт с фильтрами
+            return await this.safeFetch(`/api/get_filtered_stats?status=${status}&preset=${preset}`);
+        } catch (error) {
+            console.error('Ошибка загрузки статистики:', error);
+            // Возвращаем null или объект с нулями, чтобы UI мог обработать ошибку
+            return { totalTests: 0, averageScore: 0, anomaliesCount: 0, uniqueUsers: 0 };
+        }
+    }
+    // --- 👆 КОНЕЦ НОВОГО МЕТОДА 👆 ---
     // =========================================================================
     // CORE & WEBSOCKETS
     // =========================================================================
@@ -125,41 +143,46 @@ class APIClient {
     // API METHODS WITH UI INTERACTION (These remain unchanged)
     // =========================================================================
 
-    async loadInitialData(page = 1) {
-        ui.showLoading();
-        try {
-            // --- 👇 НОВЫЙ КОД: Читаем значение фильтра статуса 👇 ---
-            const statusFilter = document.getElementById('statusFilter');
-            const status = statusFilter ? statusFilter.value : '';
-            // --- 👇 НОВЫЙ КОД: Получаем активный пресет 👇 ---
-            const presetFilter = document.querySelector('.preset-btn.active');
-            const preset = presetFilter ? presetFilter.dataset.preset : 'all';
+async loadInitialData(page = 1) {
+    ui.showLoading();
+    try {
+        const status = document.getElementById('statusFilter')?.value || '';
+        const preset = document.querySelector('.preset-btn.active')?.dataset.preset || 'all';
 
-            // --- 👇 ИЗМЕНЕНИЕ: Добавляем &status=... в URL 👇 ---
-            const data = await this.safeFetch(`/api/get_results?page=${page}&per_page=${resultsPerPage}&status=${status}&preset=${preset}`);
-            
-            setCurrentPageResults(data.results);
-            setPaginationState(data.page, data.per_page, data.total);
+        // Запускаем оба запроса параллельно
+        const [data, stats] = await Promise.all([
+            this.safeFetch(`/api/get_results?page=${page}&per_page=${resultsPerPage}&status=${status}&preset=${preset}`),
+            this.fetchDashboardStats()
+        ]);
 
-            // Эти функции теперь отработают с отфильтрованными с сервера данными
-            // ui.renderDashboardWidgets(); // <-- Эта строка вызывала ошибку
-            ui.renderDataTable(data.results); 
-            ui.renderPaginationControls();
-            
-            // Запускаем клиентскую фильтрацию (если в полях ФИО и т.д. что-то введено)
-            // Это отфильтрует уже загруженную И отфильтрованную сервером страницу
-            ui.renderDashboardCharts();
-            ui.applyFiltersAndRender(); 
+        // Обрабатываем результаты первого запроса
+        setCurrentPageResults(data.results);
+        setPaginationState(data.page, data.per_page, data.total);
 
-        } catch (error) {
-            console.error('Ошибка загрузки результатов:', error);
-            ui.renderDataTable([]); // Показать пустую таблицу при ошибке
-            ui.renderPaginationControls(); // Сбросить пагинацию
-            ui.renderDashboardCharts(); // Очистить графики
+        // Обрабатываем результаты второго запроса
+        setDashboardStats(stats); 
+        ui.renderDashboardWidgets(stats);
+
+        // Рендерим UI с данными из обоих запросов
+        ui.renderDataTable(data.results); 
+        ui.renderPaginationControls();
+        ui.renderDashboardCharts();
+        ui.applyFiltersAndRender(); 
+
+    } catch (error) {
+        // ... (ваша текущая логика обработки ошибок) ...
+        console.error('Ошибка загрузки результатов:', error);
+        ui.renderDataTable([]);
+        ui.renderPaginationControls();
+        ui.renderDashboardCharts();
+        ui.renderDashboardWidgets(null); // Показать заглушки виджетов при ошибке
         } finally {
             ui.hideLoading();
         }
-    }
+    } 
+
+
+
 
     async loadAndRenderAbandonedSessions() {
         const container = document.getElementById('abandoned-sessions-container');
@@ -187,19 +210,45 @@ class APIClient {
         }
     }
 
-    async loadAndRenderCertificates(page = 1) { // <-- ИЗМЕНЕНИЕ: Принимаем номер страницы
-        const container = document.getElementById('registry-container');
-        container.innerHTML = '<div class="loading">Загрузка реестра...</div>';
+    async loadAndRenderCertificates(page = 1) {
+            const container = document.getElementById('registry-container');
+            container.innerHTML = '<div class="loading">Загрузка реестра...</div>';
+        
+        // ❗️ ВНЕШНИЙ 'try {' БЫЛ УДАЛЕН ОТСЮДА (он был лишним и вызывал ошибку)
+
+        // --- 👇 ИЗМЕНЕНИЕ: Добавляем параметры сортировки в URL 👇 ---
+        // ПРИМЕЧАНИЕ: Бэкенд должен быть обновлен, чтобы обрабатывать sort_key и sort_dir
+        const sortParams = `&sort_key=${registrySortKey}&sort_dir=${registrySortDir}`;
+        const yearFilter = document.getElementById('registryYearFilter')?.value || '';
+        const monthFilter = document.getElementById('registryMonthFilter')?.value || '';
+
+        // Используем URLSearchParams
+        const params = new URLSearchParams({
+            page: page,
+            per_page: 50,
+            sort_key: registrySortKey,
+            sort_dir: registrySortDir
+        });
+
+        // .append() безопасно добавляет, только если значение не пустое
+        if (yearFilter) params.append('year', yearFilter);
+        if (monthFilter) params.append('month', monthFilter);
+
+        // ❗️ Это ЕДИНСТВЕННЫЙ 'try...catch', который здесь нужен
         try {
-            // --- ИЗМЕНЕНИЕ: Добавляем параметры page и per_page в запрос ---
-            // (Установил 50, можете изменить на другое значение по умолчанию)
-            const data = await this.safeFetch(`/api/get_certificates?page=${page}&per_page=50`); 
-            ui.renderCertificatesTable(data); 
+            // Передаем .toString() в safeFetch
+            const data = await this.safeFetch(`/api/get_certificates?${params.toString()}`);
+            ui.renderCertificatesTable(data);
         } catch (error) {
             console.error("Failed to load certificates:", error);
             container.innerHTML = '<p class="error-message">Не удалось загрузить реестр.</p>';
         }
-    }
+    } // <-- ❗️ ЭТА ЗАКРЫВАЮЩАЯ СКОБКА БЫЛА ПРОПУЩЕНА
+
+
+
+
+
 
     async showEventLog(sessionId) {
         ui.openEventLogModal(sessionId);
@@ -213,7 +262,6 @@ class APIClient {
             content.innerHTML = '<p class="error-message">Не удалось загрузить журнал событий.</p>';
         }
     }
-
     async runServerDtwAnalysis(sessionIds) {
         const dtwContainer = document.getElementById('dtw-analysis-results');
         if (dtwContainer) {
@@ -275,8 +323,9 @@ class APIClient {
             return { users: [], sessions: [] }; // Возвращаем пустой объект при ошибке
         }
     }
-    /**
-     * NEW: Fetches global search results.
+/**
+     * Fetches the full, detailed results for a specific session.
+     * @param {string} sessionId The ID of the session to fetch.
      */
     async fetchFullResultDetails(sessionId) {
         try {
@@ -286,8 +335,37 @@ class APIClient {
             return null;
         }
     }
+    async fetchSettings() {
+        try {
+            return await this.safeFetch('/api/settings');
+        } catch (error) {
+            console.error('Ошибка загрузки системных настроек:', error);
+            ui.showNotification('Не удалось загрузить настройки', 'danger');
+            return null;
+        }
+    }
+
+    /**
+     * Сохраняет системные настройки
+     * @param {Object<string, string>} settingsData 
+     */
+    async saveSettings(settingsData) {
+        try {
+            return await this.safeFetch('/api/settings', {
+                method: 'POST',
+                body: JSON.stringify(settingsData)
+            });
+        } catch (error) {
+            console.error('Ошибка сохранения системных настроек:', error);
+            ui.showNotification('Ошибка при сохранении настроек', 'danger');
+            throw error; // Передаем ошибку дальше, чтобы кнопка не разблокировалась
+        }
+    }
+    // --- 👆 ---
 }
 
 const apiClient = new APIClient();
 export default apiClient;
 window.apiClient = apiClient;
+
+// --- ИСПРАВЛЕНИЕ: Лишняя '}' в конце файла УДАЛЕНА ---

@@ -26,6 +26,7 @@ export let selectedForComparison = new Set();
 /** @type {Map<string, Object>} Постоянный кэш всех загруженных результатов. Ключ - sessionId. */
 export const allLoadedResults = new Map();
 
+export let systemSettings = null;
 export let dashboardStats = null;
 // =============================================================================
 // СОСТОЯНИЕ ПАГИНАЦИИ
@@ -84,13 +85,20 @@ export const USER_COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#64748b
  */
 export function setCurrentPageResults(data) {
     currentPageResults = data;
+    
+    // --- 👇 ЛОГИЧЕСКОЕ ИСПРАВЛЕНИЕ 👇 ---
+    // Кэш (allLoadedResults) не должен очищаться. 
+    // Он должен накапливать все загруженные сессии,
+    // чтобы клиентская фильтрация (preset filters) работала корректно.
+    // allLoadedResults.clear(); // <-- ЭТА СТРОКА ВЫЗЫВАЛА ОШИБКУ ЛОГИКИ
+    
     // Добавляем/обновляем каждый результат в общем кэше
-    allLoadedResults.clear(); // Очищаем кэш перед загрузкой новых данных
     data.forEach(result => {
         if (result.sessionId) {
             allLoadedResults.set(result.sessionId, result);
         }
     });
+    // --- 👆 КОНЕЦ ИСПРАВЛЕНИЯ 👆 ---
 }
 
 /**
@@ -123,6 +131,24 @@ export function setCurrentView(view) {
  */
 export function setSettings(newSettings) {
     settings = newSettings;
+}
+
+/** @type {string} Ключ для сортировки реестра аттестатов. */
+export let registrySortKey = 'issue_date';
+/** @type {'asc' | 'desc'} Направление сортировки реестра. */
+export let registrySortDir = 'desc';
+
+export function setRegistrySort(key, dir) {
+    registrySortKey = key;
+    registrySortDir = dir;
+}
+
+/**
+ * Устанавливает системные настройки в кэш.
+ * @param {Object<string, string>} settings - Объект с настройками
+ */
+export function setSystemSettings(settings) {
+    systemSettings = settings;
 }
 
 /**
@@ -182,3 +208,5 @@ export function setMainResultsSort(key, dir) {
 export function setDashboardStats(stats) {
     dashboardStats = stats;
 }
+
+// --- ИСПРАВЛЕНИЕ: Лишняя '}' в конце файла УДАЛЕНА ---

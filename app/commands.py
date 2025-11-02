@@ -7,7 +7,40 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from app.extensions import cache, db
-from app.models import ApiKey, User
+from app.models import ApiKey, SystemSetting, User
+
+
+@click.command("init-settings")
+@with_appcontext
+def init_settings_command():
+    """Инициализирует системные настройки значениями по умолчанию."""
+
+    # Ключи и значения по умолчанию из вашего HTML
+    settings = [
+        ("ORG_NAME", "Министерство природных ресурсов Краснодарского края"),
+        ("ORG_ADDRESS_LINE_1", "350020, г. Краснодар, ул. Северная, д. 275/1"),
+        (
+            "ORG_CONTACTS",
+            "Тел.: +7 (861) 279-00-49, E-mail: mprkk@krasnodar.ru, Сайт: mpr.krasnodar.ru",
+        ),
+        ("SIGNATORY_1_TITLE", "Начальник отдела ИТОиЗИ"),
+        ("SIGNATORY_1_NAME", "Кучуров Е.В."),
+        ("SIGNATORY_2_TITLE", "Главный консультант отдела ИТОиЗИ"),
+        ("SIGNATORY_2_NAME", "Каныгин А.С."),
+    ]
+
+    count = 0
+    for key, value in settings:
+        setting = db.session.get(SystemSetting, key)
+        if not setting:
+            setting = SystemSetting(key=key, value=value)
+            db.session.add(setting)
+            count += 1
+    if count > 0:
+        db.session.commit()
+        click.echo(f"Успешно инициализировано {count} новых системных настроек.")
+    else:
+        click.echo("Все системные настройки уже существуют. Пропускаем.")
 
 
 @click.command("create-admin")
@@ -123,3 +156,4 @@ def register_commands(app):
     app.cli.add_command(create_apikey)
     app.cli.add_command(revoke_apikey)
     app.cli.add_command(collect_static_command)
+    app.cli.add_command(init_settings_command)

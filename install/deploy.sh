@@ -929,7 +929,7 @@ services:
     environment:
       FLASK_ENV: production
       SECRET_KEY: \${SECRET_KEY}
-      DATABASE_URI: 'postgresql://flask_user:\${DB_PASSWORD}@postgres/flask_app'
+      DATABASE_URI: 'postgresql://flask_user:\${DB_PASSWORD}@postgres:5432/flask_app'
       REDIS_URL: 'redis://redis:6379'
       CORS_ORIGINS: \${CORS_ORIGINS}
       SERVER_NAME: \${SERVER_NAME}
