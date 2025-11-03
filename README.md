@@ -19,6 +19,10 @@
 
 curl -sLo deploy.sh https://raw.githubusercontent.com/kootik/f152z/refactor/docker-ci/install/deploy.sh && chmod +x deploy.sh &&./deploy.sh --install-docker --start
 
+![Image](https://github.com/user-attachments/assets/099208e2-1800-4c24-afac-48fe4d08f960)
+
+![Image](https://github.com/user-attachments/assets/5874be22-661a-4237-8ce6-eae5fef6533a)
+
 > ### 🚀 Новая версия 2.0 доступна для тестирования\!
 >
 > Вышла новая, полностью переработанная версия системы с панелью администратора, продвинутым прокторингом и глубокой аналитикой.
