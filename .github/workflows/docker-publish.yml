@@ -84,7 +84,6 @@ jobs:
       run: |
         pytest tests/ -v --cov=app --cov-report=xml --cov-report=term --junitxml=junit.xml -o junit_family=legacy
     
-
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:
@@ -92,11 +91,11 @@ jobs:
 
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
-      uses: codecov/codecov-action@v5  # Заменено с test-results-action@v1
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        report_type: test_results       # Указываем тип отчета
-        files: junit.xml                # Явно указываем файл с результатами
+        report_type: test_results
+        files: junit.xml
 
   build-push-and-scan:
     needs: test
@@ -151,7 +150,7 @@ jobs:
         vuln-type: 'os,library'
         severity: 'CRITICAL,HIGH'
         trivyignores: .trivyignore
-	
+
   deploy:
     needs: [build-push-and-scan]
     runs-on: ubuntu-latest
@@ -163,4 +162,3 @@ jobs:
       run: |
         echo "Deploying branch ${{ github.ref_name }} to production..."
         # Your deployment commands go here
-
