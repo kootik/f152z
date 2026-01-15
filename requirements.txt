@@ -4,7 +4,7 @@ Flask-Migrate
 psycopg2-binary
 Flask-WTF
 Flask-Cors
-Flask-Caching # Используется Flask-Caching вместо Flask-Cache
+Flask-Caching
 Flask-Limiter
 Flask-SocketIO
 Flask-Redis
@@ -16,7 +16,6 @@ prometheus-flask-exporter
 numpy
 scipy
 fastdtw
-pydantic
 python-json-logger
 pytest
 pytest-cov
@@ -26,3 +25,5 @@ Unidecode
 Flask-Login
 Werkzeug
 email-validator
+# Security fix for GHSA-58pv-8j8x-9vj2
+jaraco.context>=6.1.0
