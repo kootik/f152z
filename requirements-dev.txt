@@ -18,3 +18,5 @@ isort>=5.12.0
 bandit>=1.7.5
 safety>=2.3.5
 pre-commit>=3.3.3
+# Security fix: Force install safe version
+jaraco.context==6.1.1
