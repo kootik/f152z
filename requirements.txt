@@ -26,4 +26,4 @@ Flask-Login
 Werkzeug
 email-validator
 # Security fix: Force install safe version
-jaraco.context==6.1.1
+jaraco.context>=6.1.0
