@@ -25,5 +25,5 @@ Unidecode
 Flask-Login
 Werkzeug
 email-validator
-# Security fix for GHSA-58pv-8j8x-9vj2
-jaraco.context>=6.1.0
+# Security fix: Force install safe version
+jaraco.context==6.1.1
