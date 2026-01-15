@@ -1502,6 +1502,7 @@ create_api_keys() {
 
     # Frontend API key
     local frontend_key_output
+    # ИСПРАВЛЕНИЕ: Добавлен флаг --endpoints
     frontend_key_output=$($COMPOSER exec -T app flask create-apikey "API_KEY_FRONTEND_CLIENT" --endpoints "api.log_event,api.save_results" 2>&1)
 
     local frontend_api_key
@@ -1701,7 +1702,7 @@ create_makefile() {
 
  cat <<'EOF' > Makefile
 # f152z Makefile
-# Версия: 3.2 (Локализованная справка)
+# Версия: 3.3 (Исправлен парсинг вывода ключей)
 # Версия с русскоязычными описаниями для команды 'help'.
 # --- Базовая настройка ---
 # Явно указываем BASH, чтобы избежать проблем с синтаксисом в скриптах.
@@ -1838,8 +1839,8 @@ create-apikey: ## 🔑 Создать API-ключ с определенными
 		exit 1; \
 	fi; \
 	echo -e "$(BLUE)Генерирую API-ключ...$(NC)"; \
-	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" "$$endpoints"); \
-	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Key:' | awk '{print $$2}'); \
+	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --endpoints "$$endpoints"); \
+	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Ключ:' | awk '{print $$2}'); \
 	if [ -n "$$API_KEY" ]; then \
 		VAR_NAME=$$(echo "$$key_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_API_KEY; \
 		echo -e "\n# API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
@@ -1858,8 +1859,8 @@ create-admin-apikey: ## 👑 Создать ADMIN API-ключ с полным �
 		exit 1; \
 	fi; \
 	echo -e "$(BLUE)Генерирую ADMIN API-ключ...$(NC)"; \
-	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" "*" --admin); \
-	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Key:' | awk '{print $$2}'); \
+	API_KEY_OUTPUT=$$($(COMPOSE) exec -T app flask create-apikey "$$key_name" --admin); \
+	API_KEY=$$(echo "$$API_KEY_OUTPUT" | grep 'Ключ:' | awk '{print $$2}'); \
 	if [ -n "$$API_KEY" ]; then \
 		VAR_NAME=$$(echo "$$key_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_ADMIN_API_KEY; \
 		echo -e "\n# ADMIN API-ключ для $$key_name\n$$VAR_NAME=$$API_KEY" >> $(ENV_FILE); \
