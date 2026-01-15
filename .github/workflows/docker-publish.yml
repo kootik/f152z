@@ -92,10 +92,13 @@ jobs:
 
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
-      uses: codecov/test-results-action@v1
+      uses: codecov/codecov-action@v5  # Заменено с test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-  build-push-and-scan: #
+        report_type: test_results       # Указываем тип отчета
+        files: junit.xml                # Явно указываем файл с результатами
+
+  build-push-and-scan:
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -123,7 +126,7 @@ jobs:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     
     - name: Build and push Docker image
-      id: build # Добавлен id для ссылки на digest
+      id: build
       uses: docker/build-push-action@v4
       with:
         context: .
@@ -138,8 +141,7 @@ jobs:
           VERSION=${{ steps.meta.outputs.version }}
         platforms: linux/amd64,linux/arm64
 
-    - name: Run Trivy vulnerability scanner # ИЗМЕНЕНИЕ 4: Trivy сканирует по digest
-    
+    - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}'
